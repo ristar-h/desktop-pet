@@ -44,13 +44,24 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["dmg", "app"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "minimumSystemVersion": "12.0",
+      "dmg": {
+        "appPosition": { "x": 180, "y": 170 },
+        "applicationFolderPosition": { "x": 480, "y": 170 },
+        "windowSize": { "width": 660, "height": 400 }
+      }
+    },
+    "category": "Entertainment",
+    "shortDescription": "你的桌面，多一个安静的伙伴",
+    "longDescription": "上传一张照片，AI 为你生成可爱 Q 版桌面伙伴，自带 8 种动作，会根据你的鼠标行为自动切换。"
   }
 }

@@ -42,6 +42,10 @@ export function PetWindow() {
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const [facingLeft, setFacingLeft] = useState(false);
   const [currentAvatarId, setCurrentAvatarId] = useState(DEFAULT_AVATAR_ID);
+  // 菜单开关动画期间临时隐藏桌宠：
+  // 期间 Tauri 窗口位置/尺寸 与 React padding 状态会有 ~1 帧不一致，
+  // 不隐藏的话桌宠会"闪到屏幕左上角"。隐藏期 ~150ms，肉眼无感知。
+  const [isWindowTransitioning, setIsWindowTransitioning] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stateMachineRef = useRef<PetStateMachine | null>(null);
@@ -150,6 +154,34 @@ export function PetWindow() {
     };
   }
 
+  // ---- Hide / Fade-In helpers ----
+  // 任何用户触发的视觉切换（菜单开关、动作切换、形象切换、远程 force-action）都必须：
+  //   1. 同步 DOM 隐藏桌宠（绕过 React batching，立即生效，避免下一次 paint 闪一下旧/新形象）
+  //   2. 在 React 状态、Tauri 窗口、frame 都稳定后再淡入
+  // 注意：自动状态机切换（idle ↔ stretch ↔ looking_around）不走这条路，否则会一直 fade。
+  const hidePetSync = useCallback(() => {
+    if (containerRef.current) {
+      containerRef.current.style.transition = "none";
+      containerRef.current.style.opacity = "0";
+      containerRef.current.style.visibility = "hidden";
+    }
+    setIsWindowTransitioning(true);
+  }, []);
+
+  const showPetFadeIn = useCallback(() => {
+    // 双 RAF 确保 React commit + 浏览器 paint + Tauri 窗口尺寸都已生效
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (containerRef.current) {
+          containerRef.current.style.visibility = "visible";
+          containerRef.current.style.transition = "opacity 0.15s ease";
+          containerRef.current.style.opacity = "1";
+        }
+        setIsWindowTransitioning(false);
+      });
+    });
+  }, []);
+
   // ---- State Machine ----
   function initStateMachine() {
     const sm = new PetStateMachine();
@@ -196,11 +228,14 @@ export function PetWindow() {
       // Listen for settings changes from main window
       const u2 = await listen<{ action: string }>("pet:force-action", (event) => {
         const action = event.payload.action as ActionState;
+        // 同步隐藏，避免远程切换动作时旧形象在新位置/新动作切换瞬间闪一下
+        hidePetSync();
         // 通过状态机设为新的 baseAction（不破坏其他自动转换规则）
         stateMachineRef.current?.setBaseAction(action);
         setFrameIndex(0);
         // 持久化 baseAction（防抖）
         persistBaseAction(action);
+        showPetFadeIn();
       });
       unlistensRef.current.push(u2);
 
@@ -232,6 +267,9 @@ export function PetWindow() {
         async (event) => {
           const id = event.payload.avatarId;
           if (!/^[a-zA-Z0-9_-]{1,64}$/.test(id)) return;
+          // 立即隐藏旧形象：loadAllActions 可能要 200~500ms 读盘+解码，
+          // 这期间 actionFrames 还是旧形象，frame 计时器还在跑 → 不隐藏会看到旧形象继续频闪
+          hidePetSync();
           setCurrentAvatarId(id);
           await loadAllActions(id);
           // 切换形象时回到 baseAction：通过状态机走 transition，
@@ -242,6 +280,7 @@ export function PetWindow() {
             const base = sm.getBaseAction();
             sm.setBaseAction(base);
           }
+          showPetFadeIn();
         }
       );
       unlistensRef.current.push(u6);
@@ -481,13 +520,20 @@ export function PetWindow() {
     if (open === menuOpenRef.current) return;
     menuOpenRef.current = open;
 
-    // 关键修复：打开菜单时先停止 walk 动画，防止 moveStep 覆写位置导致 220px 跳变
-    // （moveStep 不感知 padding 偏移，继续跑会把 window 设到错误坐标）
-    const wasWalking =
-      open && stateMachineRef.current?.getState() === "walk";
+    // 关键修复：菜单打开/关闭时都先停止 walk 动画
+    // - 打开：避免 moveStep 覆写菜单 padding 位置导致 220px 跳变
+    // - 关闭：避免「在菜单里切到 walk」时，walk 用还带 padding 偏移的坐标起跑，
+    //   再和菜单关闭的位置调整互相覆写导致 220px 跳变
+    // 关闭分支末尾会根据 state 重新启动 walk（用关闭后正确的位置作为起点）
+    const wasWalking = stateMachineRef.current?.getState() === "walk";
     if (wasWalking) {
       stopWalkMovement();
     }
+
+    // 立即（同步、绕过 React batching）通过 DOM 隐藏桌宠
+    // 这样在 React 渲染下一帧（带新动作或新 padding）之前，浏览器先看到 visibility:hidden
+    // 否则会闪一下「新动作旧位置」或「旧动作新位置」
+    hidePetSync();
 
     const newPadding = open ? FRAME_PADDING : 0;
     // 用 ref 读最新的 petSize（避免 stale closure：handleSetSize 刚改了 size 立即关菜单时）
@@ -532,6 +578,9 @@ export function PetWindow() {
         }
       }
     } catch {}
+
+    // 不论成功失败，等一帧再淡入桌宠（让 Tauri 的位置/尺寸调整有时间生效）
+    showPetFadeIn();
   }
 
   // ---- Frame Animation Loop ----
@@ -833,11 +882,15 @@ export function PetWindow() {
   }, []);
 
   // ---- 用户手动切换动作（设为新的 baseAction） ----
+  // 关键：在 setBaseAction 之前同步隐藏，避免「新动作旧位置」闪一下
+  // ContextMenu 紧接着会调用 onClose → setMenuOpenAndAdjustWindow(false)，
+  // 由它的关闭流程负责最终淡入（不在这里淡入，避免和菜单关闭流程互相覆盖造成"双闪"）
   const handleSetAction = useCallback((action: ActionState) => {
+    hidePetSync();
     stateMachineRef.current?.setBaseAction(action);
     setFrameIndex(0);
     persistBaseAction(action);
-  }, []);
+  }, [hidePetSync]);
 
   // baseAction 持久化（防抖）
   const baseActionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -943,7 +996,9 @@ export function PetWindow() {
       onPointerCancel={handlePointerUp}
       onContextMenu={handleContextMenu}
     >
-      {/* 桌宠形象容器（菜单展开时居中，菜单关闭时贴左上） */}
+      {/* 桌宠形象容器（菜单展开时居中，菜单关闭时贴左上）
+          isWindowTransitioning 为 true 时短暂隐藏，避免 Tauri 窗口与 React padding
+          状态不同步导致桌宠"闪到屏幕左上角" */}
       <div
         ref={containerRef}
         style={{
@@ -953,6 +1008,9 @@ export function PetWindow() {
           width: petSize,
           height: petSize,
           cursor: isDragging ? "grabbing" : "grab",
+          opacity: isWindowTransitioning ? 0 : 1,
+          visibility: isWindowTransitioning ? "hidden" : "visible",
+          transition: isWindowTransitioning ? "none" : "opacity 0.15s ease",
         }}
       >
         <img

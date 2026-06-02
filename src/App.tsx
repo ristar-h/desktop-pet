@@ -119,18 +119,64 @@ export default function App() {
 
   if (view === "loading") {
     return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
-        <div className="text-lg text-gray-500 animate-pulse">加载中...</div>
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--paper-bg)",
+          fontFamily: "var(--font-cn)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: 14,
+            color: "var(--ink-muted)",
+            fontStyle: "italic",
+            letterSpacing: 1,
+            animation: "inkPulse 1.6s ease-in-out infinite",
+          }}
+        >
+          加载中…
+        </div>
       </div>
     );
   }
 
   if (view === "hidden") {
     return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
-        <div className="text-center">
-          <p className="text-gray-500">桌面宠物运行中！</p>
-          <p className="text-sm text-gray-400 mt-2">右键点击桌宠可调整设置。</p>
+      <div
+        style={{
+          height: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--paper-bg)",
+          fontFamily: "var(--font-cn)",
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <p
+            style={{
+              color: "var(--ink-soft)",
+              margin: 0,
+              fontSize: 14,
+              letterSpacing: 0.5,
+            }}
+          >
+            桌面宠物运行中
+          </p>
+          <p
+            style={{
+              fontSize: 12,
+              color: "var(--ink-muted)",
+              marginTop: 8,
+              fontStyle: "italic",
+            }}
+          >
+            右键点击桌宠可调整设置
+          </p>
         </div>
       </div>
     );

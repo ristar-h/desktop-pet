@@ -247,51 +247,76 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
     <div
       style={{
         height: "100vh",
-        background: "linear-gradient(135deg, #f5f3ff 0%, #fdf4ff 100%)",
+        background: "var(--paper-bg)",
         display: "flex",
         flexDirection: "column",
+        fontFamily: "var(--font-cn)",
+        color: "var(--ink)",
       }}
     >
       {/* 顶栏 */}
       <div
         style={{
-          padding: "16px 20px",
+          padding: "20px 28px 16px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          borderBottom: "1px solid rgba(0,0,0,0.05)",
-          background: "rgba(255,255,255,0.6)",
-          backdropFilter: "blur(10px)",
+          borderBottom: "1px dashed var(--ink-faint)",
+          background: "var(--paper-bg)",
         }}
       >
         <div>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: "#1f2937" }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: 22,
+              fontWeight: 500,
+              color: "var(--ink)",
+              letterSpacing: 1,
+              fontFamily: "var(--font-cn)",
+            }}
+          >
             形象管理
           </h2>
-          <p style={{ margin: "2px 0 0", fontSize: 12, color: "#6b7280" }}>
-            选择一个形象，点击下方动作让桌宠表演
+          <p
+            style={{
+              margin: "4px 0 0",
+              fontSize: 12,
+              color: "var(--ink-soft)",
+              fontStyle: "italic",
+              fontFamily: "var(--font-cn)",
+              letterSpacing: 0.3,
+            }}
+          >
+            选一个形象，让它陪你工作
           </p>
         </div>
         <button
           onClick={onClose}
           style={{
-            border: "none",
-            background: "rgba(0,0,0,0.04)",
-            width: 32,
-            height: 32,
-            borderRadius: 8,
+            border: "1px solid var(--ink-faint)",
+            background: "transparent",
+            width: 34,
+            height: 34,
+            borderRadius: "50%",
             cursor: "pointer",
             fontSize: 14,
-            color: "#6b7280",
+            color: "var(--ink-soft)",
+            fontFamily: "var(--font-en)",
+            transition: "all 0.2s ease",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0.08)";
+            (e.currentTarget as HTMLElement).style.background = "var(--accent-bg)";
+            (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-border)";
+            (e.currentTarget as HTMLElement).style.color = "var(--accent)";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0.04)";
+            (e.currentTarget as HTMLElement).style.background = "transparent";
+            (e.currentTarget as HTMLElement).style.borderColor = "var(--ink-faint)";
+            (e.currentTarget as HTMLElement).style.color = "var(--ink-soft)";
           }}
         >
-          ✕
+          ×
         </button>
       </div>
 
@@ -301,10 +326,10 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
           style={{
             flex: 1,
             overflowY: "auto",
-            padding: 20,
+            padding: "24px 32px 32px",
             display: "flex",
             flexDirection: "column",
-            gap: 24,
+            gap: 28,
           }}
         >
           <SkeletonSection title="形象" count={3} />
@@ -321,14 +346,14 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
           style={{
             flex: 1,
             overflowY: "auto",
-            padding: 20,
+            padding: "24px 32px 32px",
             display: "flex",
             flexDirection: "column",
-            gap: 24,
+            gap: 28,
           }}
         >
           {/* ===== 第一行：形象列表 ===== */}
-          <Section title="形象" subtitle={`共 ${avatars.length} 个`}>
+          <Section title="形象" subtitle={`${avatars.length} avatars`}>
             <ScrollRow>
               {avatars.map((a) => {
                 const active = a.id === currentAvatarId;
@@ -360,7 +385,7 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
                           onCommit={(newName) => handleRename(a.id, newName)}
                         />
                       }
-                      badge={active ? "使用中" : undefined}
+                      badge={active ? "在用" : undefined}
                     >
                       {a.thumbnail ? (
                         <img
@@ -401,18 +426,19 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
                           position: "absolute",
                           top: 4,
                           right: 4,
-                          width: 20,
-                          height: 20,
+                          width: 22,
+                          height: 22,
                           borderRadius: "50%",
-                          border: "none",
-                          background: "#ef4444",
-                          color: "white",
-                          fontSize: 11,
-                          fontWeight: 600,
+                          border: "1px solid var(--brick)",
+                          background: "var(--paper-elevated)",
+                          color: "var(--brick)",
+                          fontSize: 12,
+                          fontFamily: "var(--font-en)",
+                          fontWeight: 400,
                           cursor: "pointer",
                           opacity: 0,
-                          transition: "opacity 0.15s",
-                          boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+                          transition: "all 0.18s ease",
+                          boxShadow: "0 2px 6px rgba(184, 84, 80, 0.2)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -421,7 +447,7 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
                           zIndex: 2,
                         }}
                       >
-                        ✕
+                        ×
                       </button>
                     )}
                   </div>
@@ -441,15 +467,17 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "stretch",
-                  gap: 4,
+                  gap: 6,
+                  fontFamily: "var(--font-cn)",
                 }}
                 onMouseEnter={(e) => {
                   const tile = (e.currentTarget as HTMLElement).querySelector(
                     ".add-avatar-tile"
                   ) as HTMLElement | null;
                   if (tile) {
-                    tile.style.background = "rgba(147, 51, 234, 0.08)";
-                    tile.style.borderColor = "rgba(147, 51, 234, 0.5)";
+                    tile.style.background = "var(--accent-bg)";
+                    tile.style.borderColor = "var(--accent)";
+                    tile.style.color = "var(--accent)";
                     tile.style.transform = "translateY(-2px)";
                   }
                 }}
@@ -458,8 +486,9 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
                     ".add-avatar-tile"
                   ) as HTMLElement | null;
                   if (tile) {
-                    tile.style.background = "rgba(147, 51, 234, 0.04)";
-                    tile.style.borderColor = "rgba(147, 51, 234, 0.3)";
+                    tile.style.background = "transparent";
+                    tile.style.borderColor = "var(--ink-faint)";
+                    tile.style.color = "var(--ink-muted)";
                     tile.style.transform = "translateY(0)";
                   }
                 }}
@@ -469,16 +498,18 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
                   style={{
                     width: 96,
                     height: 96,
-                    borderRadius: 12,
-                    border: "2px dashed rgba(147, 51, 234, 0.3)",
-                    background: "rgba(147, 51, 234, 0.04)",
+                    borderRadius: "var(--radius-lg)",
+                    border: "1.5px dashed var(--ink-faint)",
+                    background: "transparent",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: "#7c3aed",
-                    fontSize: 32,
+                    color: "var(--ink-muted)",
+                    fontSize: 30,
+                    fontFamily: "var(--font-en)",
+                    fontWeight: 300,
                     lineHeight: 1,
-                    transition: "all 0.18s",
+                    transition: "all 0.2s ease",
                   }}
                 >
                   +
@@ -486,10 +517,12 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
                 <span
                   style={{
                     fontSize: 11,
-                    color: "#7c3aed",
-                    fontWeight: 500,
+                    color: "var(--ink-soft)",
+                    fontWeight: 400,
                     textAlign: "center",
                     whiteSpace: "nowrap",
+                    fontFamily: "var(--font-cn)",
+                    letterSpacing: 0.3,
                   }}
                 >
                   新增形象
@@ -501,7 +534,7 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
           {/* ===== 第二行：当前形象的动作 ===== */}
           <Section
             title="动作"
-            subtitle="点击让桌宠表演（成为新的默认动作）"
+            subtitle="point & play"
           >
             <ScrollRow>
               {ALL_ACTIONS.map((action) => {
@@ -555,39 +588,65 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "rgba(0,0,0,0.4)",
-            backdropFilter: "blur(4px)",
+            background: "rgba(44, 40, 37, 0.35)",
+            animation: "fadeIn 0.2s ease-out",
           }}
           onClick={() => setDeleteConfirm(null)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: "white",
-              borderRadius: 16,
-              padding: "24px 28px",
-              width: 300,
-              boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+              background: "var(--paper-elevated)",
+              borderRadius: "var(--radius-xl)",
+              padding: "28px 32px",
+              width: 320,
+              boxShadow: "var(--shadow-modal)",
+              border: "1px solid rgba(168, 155, 145, 0.3)",
+              fontFamily: "var(--font-cn)",
             }}
           >
-            <h3 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 600, color: "#1f2937" }}>
+            <h3
+              style={{
+                margin: "0 0 10px",
+                fontSize: 17,
+                fontWeight: 500,
+                color: "var(--ink)",
+                letterSpacing: 0.5,
+              }}
+            >
               确认删除
             </h3>
-            <p style={{ margin: "0 0 20px", fontSize: 14, color: "#6b7280", lineHeight: 1.5 }}>
-              确定删除「{deleteConfirm.name}」？此操作不可恢复。
+            <p
+              style={{
+                margin: "0 0 22px",
+                fontSize: 13,
+                color: "var(--ink-soft)",
+                lineHeight: 1.7,
+                fontFamily: "var(--font-cn)",
+              }}
+            >
+              将永久删除「<span style={{ color: "var(--ink)", fontWeight: 500 }}>{deleteConfirm.name}</span>」，此操作不可恢复。
             </p>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <button
                 onClick={() => setDeleteConfirm(null)}
                 style={{
-                  padding: "8px 16px",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 8,
-                  background: "white",
+                  padding: "8px 18px",
+                  border: "1px solid var(--ink-faint)",
+                  borderRadius: "var(--radius-md)",
+                  background: "transparent",
                   fontSize: 13,
-                  fontWeight: 500,
-                  color: "#374151",
+                  fontWeight: 400,
+                  color: "var(--ink-soft)",
                   cursor: "pointer",
+                  fontFamily: "var(--font-cn)",
+                  transition: "all 0.18s ease",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "rgba(168, 155, 145, 0.1)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "transparent";
                 }}
               >
                 取消
@@ -595,14 +654,23 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
               <button
                 onClick={confirmDelete}
                 style={{
-                  padding: "8px 16px",
-                  border: "none",
-                  borderRadius: 8,
-                  background: "#ef4444",
+                  padding: "8px 18px",
+                  border: "1px solid var(--brick)",
+                  borderRadius: "var(--radius-md)",
+                  background: "var(--brick)",
                   fontSize: 13,
                   fontWeight: 500,
-                  color: "white",
+                  color: "var(--paper-elevated)",
                   cursor: "pointer",
+                  fontFamily: "var(--font-cn)",
+                  letterSpacing: 0.5,
+                  transition: "all 0.18s ease",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "#a04846";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "var(--brick)";
                 }}
               >
                 删除
@@ -626,21 +694,35 @@ function SkeletonSection({ title, count }: { title: string; count: number }) {
         style={{
           display: "flex",
           alignItems: "baseline",
-          gap: 8,
-          marginBottom: 10,
+          gap: 10,
+          marginBottom: 14,
+          paddingBottom: 6,
+          borderBottom: "1px dashed var(--ink-faint)",
         }}
       >
         <h3
           style={{
             margin: 0,
             fontSize: 14,
-            fontWeight: 600,
-            color: "#374151",
+            fontWeight: 500,
+            color: "var(--ink)",
+            letterSpacing: 1,
+            fontFamily: "var(--font-cn)",
           }}
         >
           {title}
         </h3>
-        <span style={{ fontSize: 12, color: "#9ca3af" }}>加载中...</span>
+        <span
+          style={{
+            fontSize: 11,
+            color: "var(--ink-muted)",
+            fontStyle: "italic",
+            fontFamily: "var(--font-en)",
+            letterSpacing: 0.4,
+          }}
+        >
+          loading…
+        </span>
       </div>
       <div style={{ display: "flex", gap: 10, overflowX: "hidden" }}>
         {Array.from({ length: count }).map((_, i) => (
@@ -652,17 +734,17 @@ function SkeletonSection({ title, count }: { title: string; count: number }) {
               display: "flex",
               flexDirection: "column",
               gap: 6,
-              animation: "skeleton-pulse 1.4s ease-in-out infinite",
-              animationDelay: `${i * 0.1}s`,
+              animation: "inkPulse 1.6s ease-in-out infinite",
+              animationDelay: `${i * 0.12}s`,
             }}
           >
             <div
               style={{
                 width: 96,
                 height: 96,
-                borderRadius: 12,
-                background:
-                  "linear-gradient(135deg, rgba(0,0,0,0.06), rgba(0,0,0,0.03))",
+                borderRadius: "var(--radius-lg)",
+                background: "var(--paper-card)",
+                border: "1px solid rgba(168, 155, 145, 0.2)",
               }}
             />
             <div
@@ -670,7 +752,7 @@ function SkeletonSection({ title, count }: { title: string; count: number }) {
                 width: "70%",
                 height: 10,
                 borderRadius: 4,
-                background: "rgba(0,0,0,0.06)",
+                background: "rgba(168, 155, 145, 0.15)",
                 margin: "0 auto",
               }}
             />
@@ -696,22 +778,36 @@ function Section({
         style={{
           display: "flex",
           alignItems: "baseline",
-          gap: 8,
-          marginBottom: 10,
+          gap: 10,
+          marginBottom: 14,
+          paddingBottom: 6,
+          borderBottom: "1px dashed var(--ink-faint)",
         }}
       >
         <h3
           style={{
             margin: 0,
             fontSize: 14,
-            fontWeight: 600,
-            color: "#374151",
+            fontWeight: 500,
+            color: "var(--ink)",
+            letterSpacing: 1,
+            fontFamily: "var(--font-cn)",
           }}
         >
           {title}
         </h3>
         {subtitle && (
-          <span style={{ fontSize: 12, color: "#9ca3af" }}>{subtitle}</span>
+          <span
+            style={{
+              fontSize: 11,
+              color: "var(--ink-muted)",
+              fontStyle: "italic",
+              fontFamily: "var(--font-en)",
+              letterSpacing: 0.4,
+            }}
+          >
+            {subtitle}
+          </span>
         )}
       </div>
       {children}
@@ -774,39 +870,40 @@ function Card({
         display: "flex",
         flexDirection: "column",
         alignItems: "stretch",
-        gap: 4,
+        gap: 6,
+        fontFamily: "var(--font-cn)",
       }}
     >
       <div
         style={{
           width: 96,
           height: 96,
-          borderRadius: 12,
+          borderRadius: "var(--radius-lg)",
           border: active
-            ? "2px solid #7c3aed"
-            : "1px solid rgba(0,0,0,0.06)",
-          background: active ? "rgba(147,51,234,0.06)" : "white",
+            ? "1.5px solid var(--accent)"
+            : "1px solid rgba(168, 155, 145, 0.25)",
+          background: active ? "var(--accent-bg)" : "var(--paper-card)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           overflow: "hidden",
           position: "relative",
           boxShadow: active
-            ? "0 4px 12px rgba(147,51,234,0.15)"
-            : "0 1px 3px rgba(0,0,0,0.04)",
-          transition: "all 0.18s",
+            ? "var(--shadow-card)"
+            : "var(--shadow-soft)",
+          transition: "all 0.22s ease",
         }}
         onMouseEnter={(e) => {
           if (!disabled && !active) {
             (e.currentTarget as HTMLElement).style.borderColor =
-              "rgba(147,51,234,0.4)";
+              "var(--accent-border)";
             (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
           }
         }}
         onMouseLeave={(e) => {
           if (!active) {
             (e.currentTarget as HTMLElement).style.borderColor =
-              "rgba(0,0,0,0.06)";
+              "rgba(168, 155, 145, 0.25)";
             (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
           }
         }}
@@ -816,15 +913,18 @@ function Card({
           <span
             style={{
               position: "absolute",
-              top: 4,
-              right: 4,
-              padding: "1px 6px",
+              top: 6,
+              right: 6,
+              padding: "2px 7px",
               fontSize: 9,
-              fontWeight: 600,
-              borderRadius: 4,
-              background: badgeColor ?? "rgba(147,51,234,0.9)",
-              color: "white",
-              letterSpacing: 0.3,
+              fontWeight: 500,
+              borderRadius: 999,
+              background: "var(--paper-elevated)",
+              color: badgeColor ?? "var(--accent)",
+              border: `1px solid ${badgeColor ?? "var(--accent-border)"}`,
+              letterSpacing: 0.6,
+              fontFamily: "var(--font-cn)",
+              boxShadow: "0 1px 2px rgba(80, 50, 30, 0.06)",
             }}
           >
             {badge}
@@ -834,13 +934,15 @@ function Card({
       {labelNode ?? (
         <span
           style={{
-            fontSize: 11,
-            color: active ? "#7c3aed" : "#6b7280",
-            fontWeight: active ? 600 : 500,
+            fontSize: 12,
+            color: active ? "var(--accent)" : "var(--ink-soft)",
+            fontWeight: active ? 500 : 400,
             textAlign: "center",
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
+            fontFamily: "var(--font-cn)",
+            letterSpacing: 0.3,
           }}
         >
           {label}
@@ -878,13 +980,15 @@ function EditableLabel({
   }, [value, editing]);
 
   const commonStyle: React.CSSProperties = {
-    fontSize: 11,
-    color: active ? "#7c3aed" : "#6b7280",
-    fontWeight: active ? 600 : 500,
+    fontSize: 12,
+    color: active ? "var(--accent)" : "var(--ink-soft)",
+    fontWeight: active ? 500 : 400,
     textAlign: "center",
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
+    fontFamily: "var(--font-cn)",
+    letterSpacing: 0.3,
   };
 
   if (editing) {
@@ -916,12 +1020,12 @@ function EditableLabel({
           ...commonStyle,
           width: "100%",
           boxSizing: "border-box",
-          padding: "1px 4px",
+          padding: "2px 6px",
           margin: 0,
-          border: "1px solid #7c3aed",
-          borderRadius: 4,
+          border: "1px solid var(--accent)",
+          borderRadius: "var(--radius-sm)",
           outline: "none",
-          background: "white",
+          background: "var(--paper-elevated)",
         }}
       />
     );
@@ -940,12 +1044,11 @@ function EditableLabel({
         ...commonStyle,
         cursor: "text",
         padding: "1px 4px",
-        borderRadius: 4,
-        transition: "background 0.15s",
+        borderRadius: "var(--radius-sm)",
+        transition: "background 0.18s ease",
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.background =
-          "rgba(124, 58, 237, 0.06)";
+        (e.currentTarget as HTMLElement).style.background = "var(--accent-bg)";
       }}
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLElement).style.background = "transparent";

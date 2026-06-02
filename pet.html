@@ -2,7 +2,48 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <!-- 字体（与主窗口一致） -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.7.0/style.css"
+    />
     <style>
+      /* ============ Warm Ink Journal Tokens（桌宠窗口专属副本） ============ */
+      :root {
+        --paper-bg: #faf6ee;
+        --paper-card: #f5efe3;
+        --paper-elevated: #fdfaf3;
+        --ink: #2c2825;
+        --ink-soft: #6b5d54;
+        --ink-muted: #a89b91;
+        --ink-faint: #d4cabd;
+        --accent: #c4704b;
+        --accent-soft: #e8a884;
+        --accent-bg: rgba(196, 112, 75, 0.08);
+        --accent-border: rgba(196, 112, 75, 0.25);
+        --sage: #8fae8b;
+        --sage-bg: rgba(143, 174, 139, 0.12);
+        --brick: #b85450;
+        --brick-soft: #d4847d;
+        --brick-bg: rgba(184, 84, 80, 0.08);
+        --shadow-soft: 0 1px 2px rgba(80, 50, 30, 0.04);
+        --shadow-card: 0 2px 8px rgba(196, 112, 75, 0.06), 0 1px 2px rgba(80, 50, 30, 0.04);
+        --shadow-pop: 0 8px 24px rgba(80, 50, 30, 0.10), 0 2px 6px rgba(80, 50, 30, 0.06);
+        --shadow-modal: 0 16px 48px rgba(80, 50, 30, 0.18), 0 4px 12px rgba(80, 50, 30, 0.08);
+        --font-cn: "LXGW WenKai", "霞鹜文楷", "PingFang SC", "Hiragino Sans GB", -apple-system, sans-serif;
+        --font-en: "Fraunces", "LXGW WenKai", "PingFang SC", -apple-system, serif;
+        --font-num: "Fraunces", "Iowan Old Style", Georgia, serif;
+        --radius-sm: 6px;
+        --radius-md: 10px;
+        --radius-lg: 14px;
+        --radius-xl: 18px;
+      }
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body {
         background: transparent;
@@ -14,6 +55,10 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        font-family: var(--font-cn);
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
     </style>
   </head>

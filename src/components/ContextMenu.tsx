@@ -129,20 +129,21 @@ export function ContextMenu({
         position: "absolute",
         left: menuLeft,
         top: menuTop,
-        width: Math.max(180, Math.min(menuMaxWidth, 200)),
+        width: Math.max(192, Math.min(menuMaxWidth, 212)),
         maxHeight: menuMaxHeight,
         overflowY: "auto",
         zIndex: 9999,
         opacity: visible ? 1 : 0,
-        transform: visible ? "scale(1)" : "scale(0.92)",
+        transform: visible ? "scale(1)" : "scale(0.96)",
         transformOrigin: "left top",
-        transition: "all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1)",
-        background: "rgba(255, 255, 255, 0.97)",
-        backdropFilter: "blur(12px)",
-        borderRadius: 14,
-        padding: 6,
-        boxShadow: "0 12px 36px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08)",
-        border: "1px solid rgba(0,0,0,0.06)",
+        transition: "all 0.2s ease-out",
+        background: "var(--paper-elevated)",
+        borderRadius: "var(--radius-lg)",
+        padding: 8,
+        boxShadow: "var(--shadow-pop)",
+        border: "1px solid rgba(168, 155, 145, 0.25)",
+        fontFamily: "var(--font-cn)",
+        color: "var(--ink)",
       }}
     >
       {/* ===== 切换动作 ===== */}
@@ -168,17 +169,18 @@ export function ContextMenu({
                 style={{
                   ...subItemStyle,
                   background: isCurrent
-                    ? "rgba(147, 51, 234, 0.1)"
+                    ? "var(--accent-bg)"
                     : "transparent",
-                  color: isCurrent ? "#7c3aed" : "#4b5563",
-                  fontWeight: isCurrent ? 600 : 400,
+                  color: isCurrent ? "var(--accent)" : "var(--ink-soft)",
+                  fontWeight: isCurrent ? 500 : 400,
                   opacity: thumbnail ? 1 : 0.4,
                   cursor: thumbnail ? "pointer" : "not-allowed",
+                  border: isCurrent ? "1px solid var(--accent-border)" : "1px solid transparent",
                 }}
                 onMouseEnter={(e) => {
                   if (!isCurrent && thumbnail) {
                     (e.currentTarget as HTMLElement).style.background =
-                      "rgba(0,0,0,0.04)";
+                      "rgba(196, 112, 75, 0.05)";
                   }
                 }}
                 onMouseLeave={(e) => {
@@ -195,11 +197,11 @@ export function ContextMenu({
                     style={{
                       width: 28,
                       height: 28,
-                      borderRadius: 6,
+                      borderRadius: "var(--radius-sm)",
                       objectFit: "contain",
                       background: isCurrent
-                        ? "rgba(147,51,234,0.08)"
-                        : "rgba(0,0,0,0.03)",
+                        ? "rgba(196, 112, 75, 0.06)"
+                        : "rgba(168, 155, 145, 0.08)",
                       flexShrink: 0,
                     }}
                   />
@@ -208,16 +210,17 @@ export function ContextMenu({
                     style={{
                       width: 28,
                       height: 28,
-                      borderRadius: 6,
-                      background: "rgba(0,0,0,0.05)",
+                      borderRadius: "var(--radius-sm)",
+                      background: "rgba(168, 155, 145, 0.1)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       flexShrink: 0,
                       fontSize: 14,
+                      color: "var(--ink-muted)",
                     }}
                   >
-                    -
+                    －
                   </span>
                 )}
                 <span style={{ flex: 1, textAlign: "left" }}>
@@ -226,10 +229,13 @@ export function ContextMenu({
                 <span
                   style={{
                     fontSize: 10,
-                    color: spec.loop ? "#10b981" : "#f59e0b",
+                    fontFamily: "var(--font-en)",
+                    fontStyle: "italic",
+                    color: spec.loop ? "var(--sage)" : "var(--accent-soft)",
+                    letterSpacing: 0.4,
                   }}
                 >
-                  {spec.loop ? "循环" : "一次"}
+                  {spec.loop ? "loop" : "once"}
                 </span>
               </button>
             );
@@ -246,7 +252,15 @@ export function ContextMenu({
         active={showSizeList}
         rightSlot={
           <>
-            <span style={{ fontSize: 11, color: "#9ca3af", marginRight: 4 }}>
+            <span
+              style={{
+                fontSize: 11,
+                fontFamily: "var(--font-num)",
+                color: "var(--ink-muted)",
+                marginRight: 6,
+                letterSpacing: 0.3,
+              }}
+            >
               {petSize}px
             </span>
             <Chevron rotated={showSizeList} />
@@ -265,15 +279,16 @@ export function ContextMenu({
                 style={{
                   ...subItemStyle,
                   background: active
-                    ? "rgba(147, 51, 234, 0.1)"
+                    ? "var(--accent-bg)"
                     : "transparent",
-                  color: active ? "#7c3aed" : "#4b5563",
-                  fontWeight: active ? 600 : 400,
+                  color: active ? "var(--accent)" : "var(--ink-soft)",
+                  fontWeight: active ? 500 : 400,
+                  border: active ? "1px solid var(--accent-border)" : "1px solid transparent",
                 }}
                 onMouseEnter={(e) => {
                   if (!active) {
                     (e.currentTarget as HTMLElement).style.background =
-                      "rgba(0,0,0,0.04)";
+                      "rgba(196, 112, 75, 0.05)";
                   }
                 }}
                 onMouseLeave={(e) => {
@@ -283,17 +298,31 @@ export function ContextMenu({
                   }
                 }}
               >
-                <span style={{ fontSize: 13, width: 16, textAlign: "center" }}>
-                  {active ? "●" : "○"}
+                <span
+                  style={{
+                    fontSize: 12,
+                    width: 16,
+                    textAlign: "center",
+                    color: active ? "var(--accent)" : "var(--ink-muted)",
+                  }}
+                >
+                  {active ? "✦" : "·"}
                 </span>
                 <span style={{ flex: 1, textAlign: "left" }}>{preset.label}</span>
-                <span style={{ fontSize: 11, color: "#9ca3af" }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontFamily: "var(--font-num)",
+                    color: "var(--ink-muted)",
+                    letterSpacing: 0.3,
+                  }}
+                >
                   {preset.px}px
                 </span>
               </button>
             );
           })}
-          <div style={hintStyle}>💡 在桌宠上滚动滚轮可微调</div>
+          <div style={hintStyle}>滚轮可微调尺寸</div>
         </div>
       )}
 
@@ -304,7 +333,17 @@ export function ContextMenu({
         icon="🎨"
         label="切换形象"
         rightSlot={
-          <span style={{ fontSize: 10, color: "#9ca3af" }}>...</span>
+          <span
+            style={{
+              fontSize: 14,
+              color: "var(--ink-muted)",
+              fontFamily: "var(--font-en)",
+              letterSpacing: -1,
+              lineHeight: 0.6,
+            }}
+          >
+            ⋯
+          </span>
         }
         onClick={handleClickSwitchAvatar}
       />
@@ -334,8 +373,9 @@ function MenuRow({
   rightSlot?: React.ReactNode;
   onClick: () => void;
 }) {
-  const baseColor = danger ? "#dc2626" : "#374151";
-  const hoverBg = danger ? "rgba(220,38,38,0.08)" : "rgba(0,0,0,0.04)";
+  const baseColor = danger ? "var(--brick)" : "var(--ink)";
+  const activeBg = danger ? "var(--brick-bg)" : "var(--accent-bg)";
+  const hoverBg = danger ? "var(--brick-bg)" : "rgba(196, 112, 75, 0.05)";
 
   return (
     <button
@@ -343,17 +383,19 @@ function MenuRow({
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 8,
+        gap: 10,
         width: "100%",
-        padding: "8px 12px",
-        border: "none",
-        background: active ? "rgba(147, 51, 234, 0.08)" : "transparent",
-        borderRadius: 8,
+        padding: "9px 12px",
+        border: "1px solid transparent",
+        background: active ? activeBg : "transparent",
+        borderRadius: "var(--radius-md)",
         cursor: "pointer",
         fontSize: 13,
         color: baseColor,
         fontWeight: 500,
-        transition: "background 0.15s",
+        fontFamily: "var(--font-cn)",
+        transition: "background 0.18s ease, border-color 0.18s ease",
+        textAlign: "left",
       }}
       onMouseEnter={(e) => {
         if (!active) {
@@ -366,8 +408,10 @@ function MenuRow({
         }
       }}
     >
-      <span style={{ fontSize: 15, width: 18, textAlign: "center" }}>{icon}</span>
-      <span style={{ flex: 1, textAlign: "left" }}>{label}</span>
+      <span style={{ fontSize: 14, width: 18, textAlign: "center", flexShrink: 0 }}>
+        {icon}
+      </span>
+      <span style={{ flex: 1, textAlign: "left", letterSpacing: 0.2 }}>{label}</span>
       {rightSlot}
     </button>
   );
@@ -377,13 +421,16 @@ function Chevron({ rotated }: { rotated?: boolean }) {
   return (
     <span
       style={{
-        fontSize: 10,
-        color: "#9ca3af",
+        fontSize: 9,
+        color: "var(--ink-muted)",
         transform: rotated ? "rotate(90deg)" : "rotate(0deg)",
-        transition: "transform 0.2s",
+        transition: "transform 0.22s ease",
+        display: "inline-block",
+        width: 10,
+        textAlign: "center",
       }}
     >
-      ▶
+      ▸
     </span>
   );
 }
@@ -392,36 +439,40 @@ function Divider() {
   return (
     <div
       style={{
-        height: 1,
-        background: "rgba(0,0,0,0.06)",
-        margin: "4px 8px",
+        height: 0,
+        borderTop: "1px dashed var(--ink-faint)",
+        margin: "6px 10px",
       }}
     />
   );
 }
 
 const subListStyle: React.CSSProperties = {
-  padding: "2px 4px 4px 4px",
-  borderTop: "1px solid rgba(0,0,0,0.04)",
+  padding: "4px 4px 6px 4px",
   marginTop: 2,
+  marginBottom: 2,
 };
 
 const subItemStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
-  gap: 8,
+  gap: 10,
   width: "100%",
-  padding: "6px 8px",
-  border: "none",
-  borderRadius: 6,
+  padding: "7px 9px",
+  border: "1px solid transparent",
+  borderRadius: "var(--radius-sm)",
   cursor: "pointer",
   fontSize: 12,
-  transition: "background 0.15s",
+  fontFamily: "var(--font-cn)",
+  transition: "background 0.18s ease, border-color 0.18s ease",
+  textAlign: "left",
 };
 
 const hintStyle: React.CSSProperties = {
-  padding: "6px 10px 2px 10px",
+  padding: "8px 10px 2px 10px",
   fontSize: 11,
-  color: "#9ca3af",
-  lineHeight: 1.4,
+  color: "var(--ink-muted)",
+  lineHeight: 1.5,
+  fontStyle: "italic",
+  fontFamily: "var(--font-cn)",
 };

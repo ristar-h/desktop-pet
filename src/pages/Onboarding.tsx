@@ -23,6 +23,7 @@ import {
 import { ALL_ACTIONS, DEFAULT_ACTION_SPECS } from "../core/types";
 import type { ActionState } from "../core/types";
 import { toast } from "../utils/toast";
+import { processImageForUpload, formatBytes } from "../utils/image-process";
 
 /** 把错误对象/消息转换成对用户友好的中文 */
 function humanizeError(err: unknown): string {
@@ -60,6 +61,10 @@ export function Onboarding({ onComplete, skipToPhoto, onBack }: Props) {
   const [validating, setValidating] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState("");
+  // 图片预处理：HEIC 自动转 JPEG + 压缩到长边 1024
+  const [photoProcessing, setPhotoProcessing] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+  const [photoMeta, setPhotoMeta] = useState<{ originalSize: number; finalSize: number; finalWidth: number; finalHeight: number } | null>(null);
   const [currentGenAction, setCurrentGenAction] = useState<ActionState | null>(null);
   const [genProgress, setGenProgress] = useState<GenerateProgress | null>(null);
   const [completedActions, setCompletedActions] = useState<ActionState[]>([]);
@@ -117,18 +122,42 @@ export function Onboarding({ onComplete, skipToPhoto, onBack }: Props) {
   // ---- Step 1: Welcome ----
   if (step === "welcome") {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 p-8">
-        <div className="text-6xl mb-6">🐾</div>
-        <h1 className="text-2xl font-bold text-gray-800 mb-3">桌面宠物</h1>
-        <p className="text-gray-600 text-center max-w-xs mb-8">
-          上传你的照片，生成一个可爱的 Q 版桌面宠物陪伴你！
-        </p>
-        <button
-          onClick={() => setStep("apikey")}
-          className="px-8 py-3 bg-purple-600 text-white rounded-full font-medium hover:bg-purple-700 transition-colors shadow-lg shadow-purple-200"
-        >
-          开始
-        </button>
+      <div style={pageWrap}>
+        <div style={{ textAlign: "center", maxWidth: 360 }}>
+          <div style={{ fontSize: 56, marginBottom: 18, lineHeight: 1 }}>🐾</div>
+          <h1
+            style={{
+              fontSize: 26,
+              fontWeight: 500,
+              color: "var(--ink)",
+              margin: "0 0 12px",
+              letterSpacing: 2,
+              fontFamily: "var(--font-cn)",
+            }}
+          >
+            桌面宠物
+          </h1>
+          <p
+            style={{
+              fontSize: 13,
+              color: "var(--ink-soft)",
+              margin: "0 0 32px",
+              lineHeight: 1.8,
+              fontFamily: "var(--font-cn)",
+            }}
+          >
+            上传一张照片，<br />
+            生成属于你的可爱桌面陪伴
+          </p>
+          <button
+            onClick={() => setStep("apikey")}
+            style={primaryBtn}
+            onMouseEnter={primaryBtnHover.enter}
+            onMouseLeave={primaryBtnHover.leave}
+          >
+            开 始
+          </button>
+        </div>
       </div>
     );
   }
@@ -136,11 +165,11 @@ export function Onboarding({ onComplete, skipToPhoto, onBack }: Props) {
   // ---- Step 2: API Key ----
   if (step === "apikey") {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 p-8">
-        <div className="w-full max-w-sm">
-          <h2 className="text-xl font-bold text-gray-800 mb-2">API 密钥</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            输入你的 Evolink API 密钥来生成你的桌宠。
+      <div style={pageWrap}>
+        <div style={{ width: "100%", maxWidth: 380 }}>
+          <h2 style={pageTitle}>API 密钥</h2>
+          <p style={pageDesc}>
+            输入你的 Evolink API 密钥，用来生成桌宠形象。
           </p>
           <a
             href="#"
@@ -151,9 +180,20 @@ export function Onboarding({ onComplete, skipToPhoto, onBack }: Props) {
                 await openUrl("https://docs.evolink.ai/cn/quickstart");
               } catch {}
             }}
-            className="text-xs text-purple-600 hover:underline mb-4 block"
+            style={{
+              fontSize: 12,
+              color: "var(--accent)",
+              textDecoration: "none",
+              display: "inline-block",
+              marginBottom: 18,
+              fontStyle: "italic",
+              fontFamily: "var(--font-cn)",
+              letterSpacing: 0.3,
+              borderBottom: "1px dashed var(--accent-border)",
+              paddingBottom: 1,
+            }}
           >
-            如何获取 API 密钥 → (evolink.ai)
+            如何获取 API 密钥 → evolink.ai
           </a>
           <input
             type="text"
@@ -161,23 +201,66 @@ export function Onboarding({ onComplete, skipToPhoto, onBack }: Props) {
             onChange={(e) => setApiKey(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleContinueApiKey()}
             placeholder="sk-..."
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-300 bg-white font-mono text-sm"
+            style={{
+              width: "100%",
+              padding: "12px 14px",
+              border: "1px solid var(--ink-faint)",
+              borderRadius: "var(--radius-md)",
+              outline: "none",
+              background: "var(--paper-elevated)",
+              fontFamily: "var(--font-num)",
+              fontSize: 13,
+              color: "var(--ink)",
+              letterSpacing: 0.5,
+              transition: "border-color 0.18s ease",
+              boxSizing: "border-box",
+            }}
+            onFocus={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)";
+            }}
+            onBlur={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--ink-faint)";
+            }}
           />
           {apiKeyError && (
-            <p className="text-sm text-red-500 mt-2">{apiKeyError}</p>
+            <p style={{ fontSize: 12, color: "var(--brick)", marginTop: 8, fontFamily: "var(--font-cn)" }}>
+              {apiKeyError}
+            </p>
           )}
           {debugInfo && (
-            <p className="text-xs text-blue-500 mt-1 font-mono">[debug] {debugInfo}</p>
+            <p style={{ fontSize: 11, color: "var(--accent)", marginTop: 4, fontFamily: "var(--font-num)" }}>
+              [debug] {debugInfo}
+            </p>
           )}
           <button
             onClick={() => handleContinueApiKey()}
             disabled={validating}
-            className="w-full mt-4 px-4 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
+            style={{
+              ...primaryBtnFull,
+              marginTop: 18,
+              opacity: validating ? 0.5 : 1,
+              cursor: validating ? "not-allowed" : "pointer",
+            }}
+            onMouseEnter={(e) => {
+              if (!validating) primaryBtnHover.enter(e);
+            }}
+            onMouseLeave={(e) => {
+              if (!validating) primaryBtnHover.leave(e);
+            }}
           >
-            {validating ? "保存中..." : "继续"}
+            {validating ? "保存中…" : "继 续"}
           </button>
-          <p className="text-xs text-gray-400 mt-2">
-            密钥长度：{apiKey.length} | 步骤：{step}
+          <p
+            style={{
+              fontSize: 11,
+              color: "var(--ink-muted)",
+              marginTop: 10,
+              fontFamily: "var(--font-num)",
+              fontStyle: "italic",
+              letterSpacing: 0.3,
+            }}
+          >
+            length: {apiKey.length} · step: {step}
           </p>
         </div>
       </div>
@@ -186,11 +269,32 @@ export function Onboarding({ onComplete, skipToPhoto, onBack }: Props) {
 
   // ---- Step 3: Photo Upload ----
   if (step === "photo") {
-    function handlePhotoSelect(file: File) {
-      setPhoto(file);
-      const reader = new FileReader();
-      reader.onload = () => setPhotoPreview(reader.result as string);
-      reader.readAsDataURL(file);
+    async function handlePhotoSelect(file: File) {
+      // 预处理：自动转 HEIC → JPEG，压缩到长边 1024，避免 base64_upload_error
+      setPhotoProcessing(true);
+      setPhotoError("");
+      setPhotoMeta(null);
+      try {
+        const { file: processed, meta } = await processImageForUpload(file);
+        setPhoto(processed);
+        setPhotoMeta({
+          originalSize: meta.originalSize,
+          finalSize: meta.finalSize,
+          finalWidth: meta.finalWidth,
+          finalHeight: meta.finalHeight,
+        });
+        const reader = new FileReader();
+        reader.onload = () => setPhotoPreview(reader.result as string);
+        reader.readAsDataURL(processed);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "图片处理失败";
+        setPhotoError(msg);
+        setPhoto(null);
+        setPhotoPreview("");
+        setPhotoMeta(null);
+      } finally {
+        setPhotoProcessing(false);
+      }
     }
 
     async function startGeneration() {
@@ -208,43 +312,102 @@ export function Onboarding({ onComplete, skipToPhoto, onBack }: Props) {
     }
 
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 p-8">
-        <div className="w-full max-w-sm">
+      <div style={pageWrap}>
+        <div style={{ width: "100%", maxWidth: 380 }}>
           {/* 返回按钮（重新生成模式下显示） */}
           {onBack && (
             <button
               onClick={onBack}
               style={{
-                display: "flex",
+                display: "inline-flex",
                 alignItems: "center",
-                gap: 4,
+                gap: 6,
                 border: "none",
                 background: "none",
                 cursor: "pointer",
-                fontSize: 13,
-                color: "#6b7280",
+                fontSize: 12,
+                color: "var(--ink-soft)",
                 padding: "4px 0",
-                marginBottom: 12,
+                marginBottom: 16,
+                fontFamily: "var(--font-cn)",
+                letterSpacing: 0.3,
+                transition: "color 0.18s ease",
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#7c3aed"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#6b7280"; }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.color = "var(--accent)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.color = "var(--ink-soft)";
+              }}
             >
-              ← 返回形象管理
+              <span style={{ fontFamily: "var(--font-en)", fontSize: 14 }}>←</span>
+              返回形象管理
             </button>
           )}
-          <h2 className="text-xl font-bold text-gray-800 mb-2">你的照片</h2>
-          <p className="text-sm text-gray-500 mb-6">
-            上传一张清晰的照片，我们会生成一个可爱的 Q 版形象！
+          <h2 style={pageTitle}>上传照片</h2>
+          <p style={pageDesc}>
+            选一张清晰的照片，让我们为你绘制一个 Q 版的小伙伴。
           </p>
 
           {!photoPreview ? (
-            <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-purple-400 transition-colors bg-white">
-              <div className="text-4xl mb-2">📷</div>
-              <p className="text-sm text-gray-500">点击或拖拽上传</p>
+            <label
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "100%",
+                height: 200,
+                border: "1.5px dashed var(--ink-faint)",
+                borderRadius: "var(--radius-lg)",
+                cursor: photoProcessing ? "wait" : "pointer",
+                background: "var(--paper-elevated)",
+                transition: "all 0.2s ease",
+                fontFamily: "var(--font-cn)",
+                opacity: photoProcessing ? 0.7 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (photoProcessing) return;
+                (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)";
+                (e.currentTarget as HTMLElement).style.background = "var(--accent-bg)";
+              }}
+              onMouseLeave={(e) => {
+                if (photoProcessing) return;
+                (e.currentTarget as HTMLElement).style.borderColor = "var(--ink-faint)";
+                (e.currentTarget as HTMLElement).style.background = "var(--paper-elevated)";
+              }}
+            >
+              {photoProcessing ? (
+                <>
+                  <div style={{ fontSize: 30, marginBottom: 10, animation: "inkPulse 1.4s ease-in-out infinite" }}>⏳</div>
+                  <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: 0, letterSpacing: 0.5 }}>
+                    正在处理图片…
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 36, marginBottom: 10 }}>📷</div>
+                  <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: 0, letterSpacing: 0.3 }}>
+                    点击或拖拽上传
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 11,
+                      color: "var(--ink-muted)",
+                      margin: "4px 0 0",
+                      fontStyle: "italic",
+                      fontFamily: "var(--font-en)",
+                    }}
+                  >
+                    jpg / png / webp / heic
+                  </p>
+                </>
+              )}
               <input
                 type="file"
-                accept="image/*"
-                className="hidden"
+                accept="image/*,.heic,.heif"
+                style={{ display: "none" }}
+                disabled={photoProcessing}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (f) handlePhotoSelect(f);
@@ -252,28 +415,112 @@ export function Onboarding({ onComplete, skipToPhoto, onBack }: Props) {
               />
             </label>
           ) : (
-            <div className="relative">
+            <div style={{ position: "relative" }}>
               <img
                 src={photoPreview}
                 alt="Preview"
-                className="w-full max-h-64 object-contain rounded-xl bg-gray-100"
+                style={{
+                  width: "100%",
+                  maxHeight: 280,
+                  objectFit: "contain",
+                  borderRadius: "var(--radius-lg)",
+                  background: "var(--paper-card)",
+                  border: "1px solid rgba(168, 155, 145, 0.25)",
+                }}
               />
               <button
                 onClick={() => {
                   setPhoto(null);
                   setPhotoPreview("");
+                  setPhotoMeta(null);
+                  setPhotoError("");
                 }}
-                className="absolute top-2 right-2 w-8 h-8 bg-black/50 text-white rounded-full flex items-center justify-center text-sm hover:bg-black/70"
+                style={{
+                  position: "absolute",
+                  top: 8,
+                  right: 8,
+                  width: 28,
+                  height: 28,
+                  border: "1px solid var(--ink-faint)",
+                  borderRadius: "50%",
+                  background: "var(--paper-elevated)",
+                  color: "var(--ink-soft)",
+                  fontSize: 14,
+                  fontFamily: "var(--font-en)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "var(--shadow-soft)",
+                  padding: 0,
+                  lineHeight: 1,
+                  transition: "all 0.18s ease",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.color = "var(--brick)";
+                  (e.currentTarget as HTMLElement).style.borderColor = "var(--brick)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.color = "var(--ink-soft)";
+                  (e.currentTarget as HTMLElement).style.borderColor = "var(--ink-faint)";
+                }}
               >
                 ×
               </button>
             </div>
           )}
 
+          {/* 错误提示 */}
+          {photoError && (
+            <p
+              style={{
+                marginTop: 10,
+                fontSize: 12,
+                color: "var(--brick)",
+                fontFamily: "var(--font-cn)",
+                lineHeight: 1.6,
+                letterSpacing: 0.3,
+              }}
+            >
+              {photoError}
+            </p>
+          )}
+
+          {/* 压缩信息（小字，悄悄提示已经处理过了） */}
+          {photoMeta && !photoError && (
+            <p
+              style={{
+                marginTop: 8,
+                fontSize: 11,
+                color: "var(--ink-muted)",
+                fontFamily: "var(--font-en)",
+                fontStyle: "italic",
+                letterSpacing: 0.3,
+                textAlign: "center",
+              }}
+            >
+              已优化 · {photoMeta.finalWidth}×{photoMeta.finalHeight} · {formatBytes(photoMeta.finalSize)}
+              {photoMeta.originalSize > photoMeta.finalSize * 1.2 && (
+                <span> · 原 {formatBytes(photoMeta.originalSize)}</span>
+              )}
+            </p>
+          )}
+
           <button
             onClick={startGeneration}
             disabled={!photo}
-            className="w-full mt-6 px-4 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
+            style={{
+              ...primaryBtnFull,
+              marginTop: 22,
+              opacity: !photo ? 0.4 : 1,
+              cursor: !photo ? "not-allowed" : "pointer",
+            }}
+            onMouseEnter={(e) => {
+              if (photo) primaryBtnHover.enter(e);
+            }}
+            onMouseLeave={(e) => {
+              if (photo) primaryBtnHover.leave(e);
+            }}
           >
             生成我的桌宠
           </button>
@@ -469,43 +716,113 @@ export function Onboarding({ onComplete, skipToPhoto, onBack }: Props) {
     const overallProgress = Math.round((doneCount / totalActions) * 100);
 
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 p-8">
-        <div className="w-full max-w-sm">
-          <h2 className="text-xl font-bold text-gray-800 mb-2">正在生成你的桌宠</h2>
-          <p className="text-sm text-gray-500 mb-6">
-            大约需要 3-5 分钟。第一个动作生成完后桌宠就会出现！
+      <div style={pageWrap}>
+        <div style={{ width: "100%", maxWidth: 380 }}>
+          <h2 style={pageTitle}>正在生成…</h2>
+          <p style={pageDesc}>
+            大约 3-5 分钟。第一个动作完成后，桌宠就会出现。
           </p>
 
           {/* Overall progress */}
-          <div className="mb-4">
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
-              <span>{doneCount}/{totalActions} 个动作</span>
+          <div style={{ marginBottom: 18 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 11,
+                color: "var(--ink-soft)",
+                marginBottom: 6,
+                fontFamily: "var(--font-num)",
+                letterSpacing: 0.5,
+              }}
+            >
+              <span>{doneCount}/{totalActions} actions</span>
               <span>{overallProgress}%</span>
             </div>
-            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div
+              style={{
+                height: 6,
+                background: "var(--paper-card)",
+                borderRadius: 999,
+                overflow: "hidden",
+                border: "1px solid rgba(168, 155, 145, 0.2)",
+              }}
+            >
               <div
-                className="h-full bg-purple-500 rounded-full transition-all duration-300"
-                style={{ width: `${overallProgress}%` }}
+                style={{
+                  height: "100%",
+                  background: "var(--accent)",
+                  borderRadius: 999,
+                  width: `${overallProgress}%`,
+                  transition: "width 0.3s ease",
+                }}
               />
             </div>
           </div>
 
           {/* Current action */}
           {currentGenAction && (
-            <div className="bg-white rounded-lg p-4 shadow-sm mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
-                <span className="text-sm font-medium text-gray-700">
+            <div
+              style={{
+                background: "var(--paper-elevated)",
+                borderRadius: "var(--radius-lg)",
+                padding: 16,
+                boxShadow: "var(--shadow-soft)",
+                marginBottom: 14,
+                border: "1px solid rgba(168, 155, 145, 0.2)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    background: "var(--accent)",
+                    borderRadius: "50%",
+                    animation: "inkPulse 1.4s ease-in-out infinite",
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "var(--ink)",
+                    fontFamily: "var(--font-cn)",
+                    letterSpacing: 0.5,
+                  }}
+                >
                   {currentGenAction}
                 </span>
               </div>
               {genProgress && (
                 <>
-                  <p className="text-xs text-gray-500 mb-1">{genProgress.message}</p>
-                  <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                  <p
+                    style={{
+                      fontSize: 11,
+                      color: "var(--ink-soft)",
+                      margin: "0 0 6px",
+                      fontFamily: "var(--font-cn)",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    {genProgress.message}
+                  </p>
+                  <div
+                    style={{
+                      height: 3,
+                      background: "var(--paper-card)",
+                      borderRadius: 999,
+                      overflow: "hidden",
+                    }}
+                  >
                     <div
-                      className="h-full bg-purple-300 rounded-full transition-all"
-                      style={{ width: `${genProgress.progress}%` }}
+                      style={{
+                        height: "100%",
+                        background: "var(--accent-soft)",
+                        borderRadius: 999,
+                        width: `${genProgress.progress}%`,
+                        transition: "width 0.3s ease",
+                      }}
                     />
                   </div>
                 </>
@@ -515,11 +832,20 @@ export function Onboarding({ onComplete, skipToPhoto, onBack }: Props) {
 
           {/* Completed actions */}
           {completedActions.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-4">
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
               {completedActions.map((a) => (
                 <span
                   key={a}
-                  className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full"
+                  style={{
+                    padding: "3px 10px",
+                    background: "var(--sage-bg)",
+                    color: "var(--sage)",
+                    fontSize: 11,
+                    borderRadius: 999,
+                    border: "1px solid rgba(143, 174, 139, 0.3)",
+                    fontFamily: "var(--font-cn)",
+                    letterSpacing: 0.3,
+                  }}
                 >
                   {a} ✓
                 </span>
@@ -529,8 +855,26 @@ export function Onboarding({ onComplete, skipToPhoto, onBack }: Props) {
 
           {/* Error */}
           {error && (
-            <div className="bg-red-50 border border-red-100 rounded-lg p-3 mb-4">
-              <p className="text-xs text-red-600">{error}</p>
+            <div
+              style={{
+                background: "var(--brick-bg)",
+                border: "1px solid rgba(184, 84, 80, 0.2)",
+                borderRadius: "var(--radius-md)",
+                padding: 12,
+                marginBottom: 14,
+              }}
+            >
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "var(--brick)",
+                  margin: 0,
+                  fontFamily: "var(--font-cn)",
+                  lineHeight: 1.6,
+                }}
+              >
+                {error}
+              </p>
             </div>
           )}
 
@@ -565,7 +909,24 @@ export function Onboarding({ onComplete, skipToPhoto, onBack }: Props) {
               setCurrentGenAction(null);
               setGenProgress(null);
             }}
-            className="w-full px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            style={{
+              width: "100%",
+              padding: "10px 16px",
+              fontSize: 13,
+              color: "var(--ink-soft)",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "var(--font-cn)",
+              letterSpacing: 0.3,
+              transition: "color 0.18s ease",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.color = "var(--brick)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.color = "var(--ink-soft)";
+            }}
           >
             取消
           </button>
@@ -576,18 +937,113 @@ export function Onboarding({ onComplete, skipToPhoto, onBack }: Props) {
 
   // ---- Step 5: Done ----
   return (
-    <div className="h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 p-8">
-      <div className="text-6xl mb-6">🎉</div>
-      <h2 className="text-xl font-bold text-gray-800 mb-2">你的桌宠准备好了！</h2>
-      <p className="text-sm text-gray-500 text-center max-w-xs mb-8">
-        桌宠已经在运行了。右键点击它可以调整设置。
-      </p>
-      <button
-        onClick={onComplete}
-        className="px-8 py-3 bg-purple-600 text-white rounded-full font-medium hover:bg-purple-700 transition-colors shadow-lg shadow-purple-200"
-      >
-        完成！
-      </button>
+    <div style={pageWrap}>
+      <div style={{ textAlign: "center", maxWidth: 360 }}>
+        <div style={{ fontSize: 56, marginBottom: 18, lineHeight: 1 }}>🎉</div>
+        <h2
+          style={{
+            fontSize: 22,
+            fontWeight: 500,
+            color: "var(--ink)",
+            margin: "0 0 12px",
+            letterSpacing: 1.5,
+            fontFamily: "var(--font-cn)",
+          }}
+        >
+          桌宠已就位
+        </h2>
+        <p
+          style={{
+            fontSize: 13,
+            color: "var(--ink-soft)",
+            margin: "0 0 32px",
+            lineHeight: 1.8,
+            fontFamily: "var(--font-cn)",
+          }}
+        >
+          它会安静地陪你工作，<br />
+          右键点它就能调整设置。
+        </p>
+        <button
+          onClick={onComplete}
+          style={primaryBtn}
+          onMouseEnter={primaryBtnHover.enter}
+          onMouseLeave={primaryBtnHover.leave}
+        >
+          完 成
+        </button>
+      </div>
     </div>
   );
 }
+
+// ============================================================
+// 共享样式（暖墨手账风）
+// ============================================================
+const pageWrap: React.CSSProperties = {
+  height: "100vh",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "var(--paper-bg)",
+  padding: "32px",
+  fontFamily: "var(--font-cn)",
+  color: "var(--ink)",
+};
+
+const pageTitle: React.CSSProperties = {
+  fontSize: 22,
+  fontWeight: 500,
+  color: "var(--ink)",
+  margin: "0 0 8px",
+  letterSpacing: 1.5,
+  fontFamily: "var(--font-cn)",
+};
+
+const pageDesc: React.CSSProperties = {
+  fontSize: 13,
+  color: "var(--ink-soft)",
+  margin: "0 0 22px",
+  lineHeight: 1.7,
+  fontFamily: "var(--font-cn)",
+  letterSpacing: 0.3,
+};
+
+const primaryBtn: React.CSSProperties = {
+  padding: "11px 36px",
+  background: "var(--accent)",
+  color: "var(--paper-elevated)",
+  border: "1px solid var(--accent)",
+  borderRadius: 999,
+  fontSize: 14,
+  fontWeight: 500,
+  fontFamily: "var(--font-cn)",
+  letterSpacing: 2,
+  cursor: "pointer",
+  boxShadow: "0 4px 14px rgba(196, 112, 75, 0.25)",
+  transition: "all 0.2s ease",
+};
+
+const primaryBtnFull: React.CSSProperties = {
+  ...primaryBtn,
+  width: "100%",
+  borderRadius: "var(--radius-md)",
+  letterSpacing: 1,
+  padding: "12px 16px",
+};
+
+const primaryBtnHover = {
+  enter: (e: React.MouseEvent) => {
+    (e.currentTarget as HTMLElement).style.background = "#a85c3a";
+    (e.currentTarget as HTMLElement).style.borderColor = "#a85c3a";
+    (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+    (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 18px rgba(196, 112, 75, 0.3)";
+  },
+  leave: (e: React.MouseEvent) => {
+    (e.currentTarget as HTMLElement).style.background = "var(--accent)";
+    (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)";
+    (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+    (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 14px rgba(196, 112, 75, 0.25)";
+  },
+};

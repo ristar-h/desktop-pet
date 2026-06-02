@@ -1,1 +1,116 @@
 @import "tailwindcss";
+
+/* ============================================================
+   Warm Ink Journal — Design Tokens
+   暖墨手账风：暖纸底色 + 楷书 + 衬线英文 + 柿子橙点缀
+   ============================================================ */
+:root {
+  /* —— 色彩 —— */
+  --paper-bg: #faf6ee;        /* 暖纸底色 */
+  --paper-card: #f5efe3;      /* 卡片底色（略深） */
+  --paper-elevated: #fdfaf3;  /* 弹窗/抬升层 */
+
+  --ink: #2c2825;             /* 主文字（暖墨） */
+  --ink-soft: #6b5d54;        /* 次文字 */
+  --ink-muted: #a89b91;       /* 提示/占位 */
+  --ink-faint: #d4cabd;       /* 极浅，分隔线 */
+
+  --accent: #c4704b;          /* 柿子橙（主点缀） */
+  --accent-soft: #e8a884;     /* 柿子橙浅色 */
+  --accent-bg: rgba(196, 112, 75, 0.08);  /* 橙色淡底 */
+  --accent-border: rgba(196, 112, 75, 0.25);
+
+  --sage: #8fae8b;            /* 鼠尾草绿（成功/使用中） */
+  --sage-bg: rgba(143, 174, 139, 0.12);
+
+  --brick: #b85450;           /* 砖红（删除/警示） */
+  --brick-soft: #d4847d;
+  --brick-bg: rgba(184, 84, 80, 0.08);
+
+  /* —— 阴影（带暖色调，不冷） —— */
+  --shadow-soft: 0 1px 2px rgba(80, 50, 30, 0.04);
+  --shadow-card: 0 2px 8px rgba(196, 112, 75, 0.06), 0 1px 2px rgba(80, 50, 30, 0.04);
+  --shadow-pop: 0 8px 24px rgba(80, 50, 30, 0.10), 0 2px 6px rgba(80, 50, 30, 0.06);
+  --shadow-modal: 0 16px 48px rgba(80, 50, 30, 0.18), 0 4px 12px rgba(80, 50, 30, 0.08);
+
+  /* —— 字体栈 —— */
+  --font-cn: "LXGW WenKai", "霞鹜文楷", "PingFang SC", "Hiragino Sans GB", -apple-system, sans-serif;
+  --font-en: "Fraunces", "LXGW WenKai", "PingFang SC", -apple-system, serif;
+  --font-num: "Fraunces", "Iowan Old Style", Georgia, serif;
+
+  /* —— 圆角 —— */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+}
+
+/* —— 全局字体 & 抗锯齿 —— */
+html, body, #root {
+  font-family: var(--font-cn);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "palt"; /* 中日字符优化间距 */
+}
+
+body {
+  background: var(--paper-bg);
+}
+
+/* 数字与英文用衬线（Fraunces 通过 unicode-range 自动应用） */
+@font-face {
+  font-family: "FrauncesNum";
+  src: local("Fraunces");
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A;
+  font-display: swap;
+}
+
+/* —— 滚动条（暖色细腻款） —— */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(168, 155, 145, 0.3);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(168, 155, 145, 0.5);
+}
+
+/* —— 选中文本 —— */
+::selection {
+  background: var(--accent-bg);
+  color: var(--ink);
+}
+
+/* —— 实用工具类 —— */
+.font-num {
+  font-family: var(--font-num);
+  font-feature-settings: "lnum", "tnum";
+}
+
+.font-en {
+  font-family: var(--font-en);
+}
+
+/* —— 虚线分隔（手账格线感） —— */
+.dashed-divider {
+  border: none;
+  border-top: 1px dashed var(--ink-faint);
+  margin: 8px 0;
+}
+
+/* —— 入场动画 —— */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes inkPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.85; }
+}
