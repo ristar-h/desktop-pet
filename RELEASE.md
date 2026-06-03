@@ -18,7 +18,9 @@ npm version major   # 0.1.0 → 1.0.0（破坏性变更）
 ## 2. Build universal dmg
 
 ```bash
-export TAURI_SIGNING_PRIVATE_KEY_PATH=~/.tauri/desktop-pet.key
+# 注意：用 _PATH 走的是公钥发现路径，但实际签名时 npm 子进程不会读这个 path
+# → 必须直接传 key 内容（base64 文件全文）
+export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/desktop-pet.key)"
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""   # 生成密钥时设的空密码
 
 npm run tauri build -- --target universal-apple-darwin
@@ -60,11 +62,11 @@ cp "src-tauri/target/universal-apple-darwin/release/bundle/macos/Desktop Pet.app
   "platforms": {
     "darwin-x86_64": {
       "signature": "<贴 .app.tar.gz.sig 文件内容>",
-      "url": "https://desktop-pet.ristar.tech/Desktop-Pet-0.2.0.app.tar.gz"
+      "url": "https://my-pet-heart.vercel.app/Desktop-Pet-0.2.0.app.tar.gz"
     },
     "darwin-aarch64": {
       "signature": "<同上>",
-      "url": "https://desktop-pet.ristar.tech/Desktop-Pet-0.2.0.app.tar.gz"
+      "url": "https://my-pet-heart.vercel.app/Desktop-Pet-0.2.0.app.tar.gz"
     }
   }
 }
@@ -97,7 +99,7 @@ Vercel 自动部署。
 ## 故障排查
 
 **横幅没出现**：
-- 检查 endpoint URL 是否能访问（`curl https://desktop-pet.ristar.tech/latest.json`）
+- 检查 endpoint URL 是否能访问（`curl https://my-pet-heart.vercel.app/latest.json`）
 - 检查 `pub_date` 格式是否合法 ISO 8601
 - 检查 `latest.json` 的 version 是否真的比当前应用 version 大
 

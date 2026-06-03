@@ -45,7 +45,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://desktop-pet.ristar.tech/latest.json"
+        "https://my-pet-heart.vercel.app/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEEyNjNDRjdGREVCMkFFNzIKUldSeXJyTGVmODlqb2lvbXV1RGlOeWxJaDRJN2wxRmhQS2t5ckdpWE9LM29iak03Q09Xckd2UlcK"
     }
