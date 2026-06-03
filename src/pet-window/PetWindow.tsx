@@ -676,8 +676,8 @@ export function PetWindow() {
       let localX = clientX - rect.left;
       const localY = clientY - rect.top;
 
-      // 走路朝左时图像被镜像 → 坐标也要镜像
-      if (facingLeft || (currentAction === "walk" && facingLeft)) {
+      // 走路 / 张望 朝左时图像被镜像 → 坐标也要镜像（跟 shouldFlip 逻辑保持一致）
+      if ((currentAction === "walk" || currentAction === "looking_around") && facingLeft) {
         localX = rect.width - localX;
       }
 
@@ -945,8 +945,15 @@ export function PetWindow() {
   const frames = getFramesForAction(currentAction);
   const currentFrame = frames[frameIndex] ?? frames[0];
 
+  // 只有"有方向感"的动作才应用镜像翻转：
+  //   - walk：跟着移动方向翻
+  //   - looking_around：进入时随机左右
+  // 其他动作（idle/sleep/happy/sad/stretch）永远用原图朝向，跟形象管理器预览保持一致——
+  // 之前 facingLeft 是个全局粘性 state，走完路一回 idle 还顶着 scaleX(-1)，
+  // 结果用户在菜单里看朝左、桌面上朝右。
   const isWalking = currentAction === "walk";
-  const shouldFlip = facingLeft || (isWalking && facingLeft);
+  const isLookingAround = currentAction === "looking_around";
+  const shouldFlip = (isWalking || isLookingAround) && facingLeft;
 
   // 当前 padding 由 menuOpen 决定：菜单关闭时窗口紧贴桌宠像素，避免拦截其他应用
   const padding = menuOpen ? FRAME_PADDING : 0;
