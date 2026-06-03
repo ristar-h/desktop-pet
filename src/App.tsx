@@ -9,14 +9,12 @@ import "./styles.css";
 type AppView =
   // 首启动短暂态：等 Rust 那边初始化完默认形象 + config
   | "loading"
-  // 形象列表（应用进来的默认页）
+  // 形象列表（应用的主页）
   | "avatar-manager"
   // Evolink + 检查更新
   | "settings"
   // 加新形象 / 重新生成（走 Onboarding 的 photo 步骤）
-  | "redesign"
-  // 主面板已被关闭（红叉），桌宠仍在桌面上
-  | "hidden";
+  | "redesign";
 
 interface UpdateBanner {
   version: string;
@@ -69,6 +67,13 @@ export default function App() {
         } catch {}
       });
       unlistensRef.current.push(u1);
+
+      // 从 Dock 点击图标触发（Rust 端 Reopen handler 发的）→ 强制回主页
+      // 处理"上次停留在 redesign / settings 页 + ⌘W hide 后，dock 唤起还看到那个旧页面"的 case
+      const u2 = await listen("app:reset-to-home", () => {
+        setView("avatar-manager");
+      });
+      unlistensRef.current.push(u2);
     } catch {}
   }
 
@@ -107,8 +112,13 @@ export default function App() {
     setView("avatar-manager");
   }
 
+  /**
+   * 用户点主面板红叉：只 hide 窗口，view 保持在 avatar-manager。
+   * 这样下次 dock 唤起 / 右键菜单"切换形象" → show 窗口时，看到的还是主页。
+   * （之前会 setView("hidden") 渲染一个"桌面宠物运行中"的占位页，
+   *    但窗口都隐藏了根本没人看，反而 dock 唤起的瞬间会一闪而过——纯 bug。）
+   */
   async function handleCloseManager() {
-    setView("hidden");
     try {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
       await getCurrentWindow().hide();
@@ -144,28 +154,6 @@ export default function App() {
     return (
       <div style={loadingWrap}>
         <div style={loadingText}>加载中…</div>
-      </div>
-    );
-  }
-
-  if (view === "hidden") {
-    return (
-      <div style={loadingWrap}>
-        <div style={{ textAlign: "center" }}>
-          <p style={{ color: "var(--ink-soft)", margin: 0, fontSize: 14, letterSpacing: 0.5 }}>
-            桌面宠物运行中
-          </p>
-          <p
-            style={{
-              fontSize: 12,
-              color: "var(--ink-muted)",
-              marginTop: 8,
-              fontStyle: "italic",
-            }}
-          >
-            右键点击桌宠可调整设置
-          </p>
-        </div>
       </div>
     );
   }

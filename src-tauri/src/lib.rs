@@ -203,19 +203,24 @@ pub fn run() {
             if matches!(event, RunEvent::Exit) {
                 running_for_run.store(false, Ordering::Relaxed);
             }
-            // macOS: 点击 Dock 图标 → 同时显示主面板 + 桌宠
-            // 用户预期：从 Dock 重新唤起 = 把伙伴和操作面板都拿回来
+            // macOS: 点击 Dock 图标 → 同时显示主面板 + 桌宠 + 把主面板拉回主页
+            // 用户预期：从 Dock 重新唤起 = 把伙伴 + 操作面板都拿回来，看到的是形象列表（主页）。
+            // 注意：不能用 has_visible_windows 做 guard——桌宠几乎一直在桌面上飘着，
+            // 这个标志几乎永远是 true，主面板被红叉隐藏后再点 Dock 就召不回来了。
+            // show() / set_focus() 对已可见窗口是幂等的，无脑两个都 show + 把主面板提到最前。
+            // 同时 emit 事件让 React 端把 view 重置回 avatar-manager（避免上次停留在 redesign /
+            //   settings 页 + ⌘W hide 后，dock 唤起还看到上传照片 / 设置页）。
             #[cfg(target_os = "macos")]
             {
-                if let RunEvent::Reopen { has_visible_windows, .. } = &event {
-                    if !*has_visible_windows {
-                        if let Some(main_window) = app_handle.get_webview_window("main") {
-                            let _ = main_window.show();
-                            let _ = main_window.set_focus();
-                        }
-                        if let Some(pet_window) = app_handle.get_webview_window("pet") {
-                            let _ = pet_window.show();
-                        }
+                if let RunEvent::Reopen { .. } = &event {
+                    if let Some(pet_window) = app_handle.get_webview_window("pet") {
+                        let _ = pet_window.show();
+                    }
+                    if let Some(main_window) = app_handle.get_webview_window("main") {
+                        let _ = main_window.show();
+                        let _ = main_window.unminimize();
+                        let _ = main_window.set_focus();
+                        let _ = main_window.emit("app:reset-to-home", ());
                     }
                 }
             }
