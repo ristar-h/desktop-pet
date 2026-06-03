@@ -534,6 +534,14 @@ export function Onboarding({ onComplete, skipToPhoto, onBack }: Props) {
     const controller = new AbortController();
     abortRef.current = controller;
 
+    // 重置上次跑剩下的状态——否则用户重试时会顶着旧的失败提示 / 旧的 ✓ 列表 / 旧的进度条
+    // （取消重试 / 换照片重试 / 完整重跑都走这里，统一清一遍）
+    setError("");
+    setDebugInfo("");
+    setCompletedActions([]);
+    setCurrentGenAction(null);
+    setGenProgress(null);
+
     // 确保有 API Key（重新生成模式下可能还没同步到 state）
     let effectiveApiKey = apiKey.trim();
     if (!effectiveApiKey) {
