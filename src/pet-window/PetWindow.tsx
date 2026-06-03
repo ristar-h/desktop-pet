@@ -154,30 +154,31 @@ export function PetWindow() {
     };
   }
 
-  // ---- Hide / Fade-In helpers ----
+  // ---- Hide / Show helpers ----
   // 任何用户触发的视觉切换（菜单开关、动作切换、形象切换、远程 force-action）都必须：
-  //   1. 同步 DOM 隐藏桌宠（绕过 React batching，立即生效，避免下一次 paint 闪一下旧/新形象）
-  //   2. 在 React 状态、Tauri 窗口、frame 都稳定后再淡入
-  // 注意：自动状态机切换（idle ↔ stretch ↔ looking_around）不走这条路，否则会一直 fade。
+  //   1. 同步用 visibility:hidden 让桌宠不再被画出来（绕过 React batching，立即生效）
+  //   2. 配合 Frame Animation Loop 检测 isWindowTransitioning 自动冻结帧 timer
+  //      —— 这样隐藏期间 frameIndex 不变化，reveal 时还是同一帧，避免"空白 → 帧跳一格"的频闪
+  //   3. 在 React 状态、Tauri 窗口都稳定后用 setTimeout snap 显示（不渐显——渐显本身会被
+  //      用户感知成"闪一下"）
+  // 注意：自动状态机切换（idle ↔ stretch ↔ looking_around）不走这条路，否则会一直闪。
   const hidePetSync = useCallback(() => {
     if (containerRef.current) {
-      containerRef.current.style.transition = "none";
-      containerRef.current.style.opacity = "0";
       containerRef.current.style.visibility = "hidden";
     }
     setIsWindowTransitioning(true);
   }, []);
 
   const showPetFadeIn = useCallback(() => {
-    // 双 RAF 确保 React commit + 浏览器 paint + Tauri 窗口尺寸都已生效
+    // 双 RAF + 一帧 setTimeout 三重保险：确保 React commit + 浏览器 paint + Tauri 窗口尺寸都已生效
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        if (containerRef.current) {
-          containerRef.current.style.visibility = "visible";
-          containerRef.current.style.transition = "opacity 0.15s ease";
-          containerRef.current.style.opacity = "1";
-        }
-        setIsWindowTransitioning(false);
+        setTimeout(() => {
+          if (containerRef.current) {
+            containerRef.current.style.visibility = "";
+          }
+          setIsWindowTransitioning(false);
+        }, 16);
       });
     });
   }, []);
@@ -584,11 +585,17 @@ export function PetWindow() {
   }
 
   // ---- Frame Animation Loop ----
+  // 关键：转场期间（isWindowTransitioning=true）冻结帧 timer。
+  // 否则 hide 期间 timer 继续跑、frameIndex 变化，reveal 后桌宠会停在和 hide 时不同的一帧，
+  // 视觉上就是「空白 → 帧跳一格」的频闪——这就是你之前让我加的"原动作静态"机制。
   useEffect(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+
+    // 转场期间冻结：不重启 timer，frameIndex 保持在 hide 时的值
+    if (isWindowTransitioning) return;
 
     const frames = getFramesForAction(currentAction);
     if (frames.length <= 1) return;
@@ -620,7 +627,7 @@ export function PetWindow() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [currentAction, actionFrames]);
+  }, [currentAction, actionFrames, isWindowTransitioning]);
 
   // ---- Get frames with fallback ----
   function getFramesForAction(action: ActionState): string[] {
@@ -997,8 +1004,8 @@ export function PetWindow() {
       onContextMenu={handleContextMenu}
     >
       {/* 桌宠形象容器（菜单展开时居中，菜单关闭时贴左上）
-          isWindowTransitioning 为 true 时短暂隐藏，避免 Tauri 窗口与 React padding
-          状态不同步导致桌宠"闪到屏幕左上角" */}
+          isWindowTransitioning 为 true 时 visibility:hidden 隐身（layout 仍占位，避免 reveal 时 reflow）
+          + 帧 timer 冻结（见 Frame Animation Loop），确保 reveal 时还是 hide 时的同一帧 */}
       <div
         ref={containerRef}
         style={{
@@ -1008,9 +1015,7 @@ export function PetWindow() {
           width: petSize,
           height: petSize,
           cursor: isDragging ? "grabbing" : "grab",
-          opacity: isWindowTransitioning ? 0 : 1,
           visibility: isWindowTransitioning ? "hidden" : "visible",
-          transition: isWindowTransitioning ? "none" : "opacity 0.15s ease",
         }}
       >
         <img

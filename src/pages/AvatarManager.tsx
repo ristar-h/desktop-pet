@@ -33,9 +33,10 @@ const ACTION_LABELS: Record<ActionState, string> = {
 interface Props {
   onAddAvatar: () => void;
   onClose: () => void;
+  onOpenSettings: () => void;
 }
 
-export function AvatarManager({ onAddAvatar, onClose }: Props) {
+export function AvatarManager({ onAddAvatar, onClose, onOpenSettings }: Props) {
   const [avatars, setAvatars] = useState<AvatarMeta[]>([]);
   const [currentAvatarId, setCurrentAvatarId] = useState<string>("");
   const [actionFrames, setActionFrames] = useState<
@@ -45,6 +46,8 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
   const [loading, setLoading] = useState(true);
   // 删除确认弹窗状态
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  // 缺 apiKey 时引导用户先去设置页填好的弹窗
+  const [apiKeyMissingPrompt, setApiKeyMissingPrompt] = useState(false);
 
   // ---- 加载所有形象（含缩略图）和当前选中形象 ----
   useEffect(() => {
@@ -243,6 +246,18 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
     } catch {}
   }
 
+  // ---- 加新形象前的 apiKey 校验 ----
+  // 用户没填过 Evolink Key 直接进 Onboarding 会卡在 photo → generating → 报 401，
+  // 不如先拦在这一步，引导他去 设置 填好 key 再回来。
+  async function handleAddAvatarClick() {
+    const config = await loadConfig();
+    if (!config?.apiKey?.trim()) {
+      setApiKeyMissingPrompt(true);
+      return;
+    }
+    onAddAvatar();
+  }
+
   return (
     <div
       style={{
@@ -291,33 +306,69 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
             选一个形象，让它陪你工作
           </p>
         </div>
-        <button
-          onClick={onClose}
-          style={{
-            border: "1px solid var(--ink-faint)",
-            background: "transparent",
-            width: 34,
-            height: 34,
-            borderRadius: "50%",
-            cursor: "pointer",
-            fontSize: 14,
-            color: "var(--ink-soft)",
-            fontFamily: "var(--font-en)",
-            transition: "all 0.2s ease",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.background = "var(--accent-bg)";
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-border)";
-            (e.currentTarget as HTMLElement).style.color = "var(--accent)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.background = "transparent";
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--ink-faint)";
-            (e.currentTarget as HTMLElement).style.color = "var(--ink-soft)";
-          }}
-        >
-          ×
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            onClick={onOpenSettings}
+            title="设置"
+            style={{
+              border: "1px solid var(--ink-faint)",
+              background: "transparent",
+              width: 34,
+              height: 34,
+              borderRadius: "50%",
+              cursor: "pointer",
+              color: "var(--ink-soft)",
+              transition: "all 0.2s ease",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--accent-bg)";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-border)";
+              (e.currentTarget as HTMLElement).style.color = "var(--accent)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--ink-faint)";
+              (e.currentTarget as HTMLElement).style.color = "var(--ink-soft)";
+            }}
+          >
+            {/* 暖墨手账风的齿轮 SVG，描边 + 圆形齿，避免太工业化 */}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              border: "1px solid var(--ink-faint)",
+              background: "transparent",
+              width: 34,
+              height: 34,
+              borderRadius: "50%",
+              cursor: "pointer",
+              fontSize: 14,
+              color: "var(--ink-soft)",
+              fontFamily: "var(--font-en)",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--accent-bg)";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--accent-border)";
+              (e.currentTarget as HTMLElement).style.color = "var(--accent)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+              (e.currentTarget as HTMLElement).style.borderColor = "var(--ink-faint)";
+              (e.currentTarget as HTMLElement).style.color = "var(--ink-soft)";
+            }}
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       {/* 内容 */}
@@ -456,7 +507,7 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
 
               {/* + 按钮：新增形象（与 Card 同尺寸：96x96 图区 + 下方 label） */}
               <button
-                onClick={onAddAvatar}
+                onClick={handleAddAvatarClick}
                 style={{
                   flexShrink: 0,
                   width: 96,
@@ -674,6 +725,113 @@ export function AvatarManager({ onAddAvatar, onClose }: Props) {
                 }}
               >
                 删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 缺 Evolink Key 引导弹窗 */}
+      {apiKeyMissingPrompt && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(44, 40, 37, 0.35)",
+            animation: "fadeIn 0.2s ease-out",
+          }}
+          onClick={() => setApiKeyMissingPrompt(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "var(--paper-elevated)",
+              borderRadius: "var(--radius-xl)",
+              padding: "28px 32px",
+              width: 340,
+              boxShadow: "var(--shadow-modal)",
+              border: "1px solid rgba(168, 155, 145, 0.3)",
+              fontFamily: "var(--font-cn)",
+            }}
+          >
+            <h3
+              style={{
+                margin: "0 0 10px",
+                fontSize: 17,
+                fontWeight: 500,
+                color: "var(--ink)",
+                letterSpacing: 0.5,
+              }}
+            >
+              先填一下 API 密钥
+            </h3>
+            <p
+              style={{
+                margin: "0 0 22px",
+                fontSize: 13,
+                color: "var(--ink-soft)",
+                lineHeight: 1.7,
+              }}
+            >
+              生成新形象需要 Evolink API 密钥，去
+              <span style={{ color: "var(--accent)", fontWeight: 500 }}> 设置 </span>
+              里填好之后再回来。
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setApiKeyMissingPrompt(false)}
+                style={{
+                  padding: "8px 18px",
+                  border: "1px solid var(--ink-faint)",
+                  borderRadius: "var(--radius-md)",
+                  background: "transparent",
+                  fontSize: 13,
+                  color: "var(--ink-soft)",
+                  cursor: "pointer",
+                  fontFamily: "var(--font-cn)",
+                  transition: "all 0.18s ease",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "rgba(168, 155, 145, 0.1)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "transparent";
+                }}
+              >
+                稍后
+              </button>
+              <button
+                onClick={() => {
+                  setApiKeyMissingPrompt(false);
+                  onOpenSettings();
+                }}
+                style={{
+                  padding: "8px 18px",
+                  border: "1px solid var(--accent)",
+                  borderRadius: "var(--radius-md)",
+                  background: "var(--accent)",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: "var(--paper-elevated)",
+                  cursor: "pointer",
+                  fontFamily: "var(--font-cn)",
+                  letterSpacing: 0.5,
+                  transition: "all 0.18s ease",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "#a85c3a";
+                  (e.currentTarget as HTMLElement).style.borderColor = "#a85c3a";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "var(--accent)";
+                  (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)";
+                }}
+              >
+                去设置
               </button>
             </div>
           </div>

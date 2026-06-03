@@ -1,26 +1,40 @@
 import { useState, useEffect, useRef } from "react";
 import { Onboarding } from "./pages/Onboarding";
 import { AvatarManager } from "./pages/AvatarManager";
-import { loadConfig } from "./utils/config-store";
+import { Settings } from "./pages/Settings";
+import { checkForUpdate } from "./utils/check-update";
 
 import "./styles.css";
 
 type AppView =
+  // 首启动短暂态：等 Rust 那边初始化完默认形象 + config
   | "loading"
-  | "onboarding"
-  | "redesign"
+  // 形象列表（应用进来的默认页）
   | "avatar-manager"
+  // Evolink + 检查更新
+  | "settings"
+  // 加新形象 / 重新生成（走 Onboarding 的 photo 步骤）
+  | "redesign"
+  // 主面板已被关闭（红叉），桌宠仍在桌面上
   | "hidden";
+
+interface UpdateBanner {
+  version: string;
+  notes?: string;
+  install: () => Promise<void>;
+}
 
 export default function App() {
   const [view, setView] = useState<AppView>("loading");
+  const [updateBanner, setUpdateBanner] = useState<UpdateBanner | null>(null);
+  const [installing, setInstalling] = useState(false);
   // 收集所有 Tauri event listener 的 unlisten 句柄，cleanup 时统一释放
-  // （StrictMode dev 下 useEffect 双调用会注册两份回调，必须能移除避免重复响应）
   const unlistensRef = useRef<Array<() => void>>([]);
 
   useEffect(() => {
-    checkFirstLaunch();
+    bootstrap();
     setupEventListeners();
+    backgroundCheckUpdate();
     return () => {
       unlistensRef.current.forEach((u) => {
         try {
@@ -31,33 +45,13 @@ export default function App() {
     };
   }, []);
 
-  async function checkFirstLaunch() {
-    try {
-      const config = await loadConfig();
-      if (config && config.onboardingCompleted) {
-        // 老用户：Rust setup 已经 show pet 窗口；这里把 main 窗口隐藏
-        setView("hidden");
-        try {
-          const { getCurrentWindow } = await import("@tauri-apps/api/window");
-          await getCurrentWindow().hide();
-        } catch {}
-        // 兜底：万一 Rust 端没 show（read_onboarding_completed 失败等），这里再 show 一次 pet
-        try {
-          const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-          const petWindow = await WebviewWindow.getByLabel("pet");
-          if (petWindow) await petWindow.show();
-        } catch {}
-      } else {
-        // 首次启动：Rust setup 已经 show main 窗口，这里只切 view
-        setView("onboarding");
-      }
-    } catch {
-      setView("onboarding");
-      try {
-        const { getCurrentWindow } = await import("@tauri-apps/api/window");
-        await getCurrentWindow().show();
-      } catch {}
-    }
+  /**
+   * Rust setup 已经把默认形象 + config 安顿好，主窗口和桌宠都 show 了。
+   * 这里就直接进 avatar-manager；如果出意外没读到 config，兜底也仍然进 avatar-manager
+   * （AvatarManager 自己会 load 形象列表，看到默认形象目录就能渲染出来）。
+   */
+  async function bootstrap() {
+    setView("avatar-manager");
   }
 
   async function setupEventListeners() {
@@ -78,31 +72,39 @@ export default function App() {
     } catch {}
   }
 
-  async function showPetWindow() {
+  /**
+   * 启动后悄悄检查一次更新；有新版就在主面板顶部塞一条横幅。
+   * 失败静默（用户可在 设置 里手动检查看具体错误）。
+   */
+  async function backgroundCheckUpdate() {
     try {
-      const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-      const petWindow = await WebviewWindow.getByLabel("pet");
-      if (petWindow) {
-        await petWindow.show();
+      const result = await checkForUpdate();
+      if (result) {
+        setUpdateBanner({
+          version: result.version,
+          notes: result.notes,
+          install: result.install,
+        });
       }
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      const mainWindow = getCurrentWindow();
-      await mainWindow.hide();
+    } catch {
+      // 静默：dev 模式下 endpoint 没配会失败，不打扰用户
+    }
+  }
+
+  async function handleInstallUpdate() {
+    if (!updateBanner) return;
+    setInstalling(true);
+    try {
+      await updateBanner.install();
     } catch (err) {
-      console.error("Failed to show pet window:", err);
+      console.error("[App] update install failed:", err);
+      setInstalling(false);
     }
   }
 
   function handleOnboardingComplete() {
-    // 首次完成 → 隐藏主窗口，回到桌宠模式（用户可右键唤起菜单）
-    // 重新生成完成 → 回到形象管理面板（让用户能看到刚生成的形象）
-    if (view === "onboarding") {
-      setView("hidden");
-      showPetWindow();
-    } else {
-      // view === "redesign"，回到管理面板
-      setView("avatar-manager");
-    }
+    // redesign 完成 → 回到管理面板（让用户看到刚生成的形象）
+    setView("avatar-manager");
   }
 
   async function handleCloseManager() {
@@ -117,54 +119,40 @@ export default function App() {
     setView("redesign");
   }
 
-  if (view === "loading") {
-    return (
-      <div
-        style={{
-          height: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "var(--paper-bg)",
-          fontFamily: "var(--font-cn)",
-        }}
-      >
-        <div
+  // ---- Render ----
+  const banner =
+    updateBanner && (view === "avatar-manager" || view === "settings") ? (
+      <div style={updateBannerStyle}>
+        <span style={{ flex: 1 }}>
+          ✨ 新版本 v{updateBanner.version} 已就绪
+        </span>
+        <button
+          onClick={handleInstallUpdate}
+          disabled={installing}
           style={{
-            fontSize: 14,
-            color: "var(--ink-muted)",
-            fontStyle: "italic",
-            letterSpacing: 1,
-            animation: "inkPulse 1.6s ease-in-out infinite",
+            ...bannerBtn,
+            opacity: installing ? 0.5 : 1,
+            cursor: installing ? "not-allowed" : "pointer",
           }}
         >
-          加载中…
-        </div>
+          {installing ? "安装中…" : "立即更新"}
+        </button>
+      </div>
+    ) : null;
+
+  if (view === "loading") {
+    return (
+      <div style={loadingWrap}>
+        <div style={loadingText}>加载中…</div>
       </div>
     );
   }
 
   if (view === "hidden") {
     return (
-      <div
-        style={{
-          height: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "var(--paper-bg)",
-          fontFamily: "var(--font-cn)",
-        }}
-      >
+      <div style={loadingWrap}>
         <div style={{ textAlign: "center" }}>
-          <p
-            style={{
-              color: "var(--ink-soft)",
-              margin: 0,
-              fontSize: 14,
-              letterSpacing: 0.5,
-            }}
-          >
+          <p style={{ color: "var(--ink-soft)", margin: 0, fontSize: 14, letterSpacing: 0.5 }}>
             桌面宠物运行中
           </p>
           <p
@@ -182,25 +170,80 @@ export default function App() {
     );
   }
 
+  if (view === "settings") {
+    return (
+      <>
+        {banner}
+        <Settings onBack={() => setView("avatar-manager")} />
+      </>
+    );
+  }
+
   if (view === "avatar-manager") {
     return (
-      <AvatarManager
-        onAddAvatar={handleAddNewAvatar}
-        onClose={handleCloseManager}
-      />
+      <>
+        {banner}
+        <AvatarManager
+          onAddAvatar={handleAddNewAvatar}
+          onClose={handleCloseManager}
+          onOpenSettings={() => setView("settings")}
+        />
+      </>
     );
   }
 
-  // "重新生成"模式（含 AvatarManager 的 + 按钮入口）
-  if (view === "redesign") {
-    return (
-      <Onboarding
-        onComplete={handleOnboardingComplete}
-        skipToPhoto={true}
-        onBack={() => setView("avatar-manager")}
-      />
-    );
-  }
-
-  return <Onboarding onComplete={handleOnboardingComplete} />;
+  // redesign：从 AvatarManager "+" 进来，给 Onboarding 的 photo 步骤
+  return (
+    <Onboarding
+      onComplete={handleOnboardingComplete}
+      skipToPhoto={true}
+      onBack={() => setView("avatar-manager")}
+    />
+  );
 }
+
+// ============================================================
+// 样式
+// ============================================================
+const loadingWrap: React.CSSProperties = {
+  height: "100vh",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "var(--paper-bg)",
+  fontFamily: "var(--font-cn)",
+};
+
+const loadingText: React.CSSProperties = {
+  fontSize: 14,
+  color: "var(--ink-muted)",
+  fontStyle: "italic",
+  letterSpacing: 1,
+  animation: "inkPulse 1.6s ease-in-out infinite",
+};
+
+const updateBannerStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  padding: "10px 18px",
+  background: "linear-gradient(90deg, rgba(196, 112, 75, 0.12), rgba(196, 112, 75, 0.06))",
+  borderBottom: "1px solid var(--accent-border)",
+  fontSize: 13,
+  color: "var(--ink)",
+  fontFamily: "var(--font-cn)",
+  letterSpacing: 0.3,
+};
+
+const bannerBtn: React.CSSProperties = {
+  padding: "6px 16px",
+  background: "var(--accent)",
+  color: "var(--paper-elevated)",
+  border: "none",
+  borderRadius: "var(--radius-md)",
+  fontSize: 12,
+  fontWeight: 500,
+  fontFamily: "var(--font-cn)",
+  letterSpacing: 1,
+  transition: "all 0.18s ease",
+};

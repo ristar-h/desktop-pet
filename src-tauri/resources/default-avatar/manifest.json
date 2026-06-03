@@ -1,0 +1,48 @@
+{
+  "id": "default",
+  "name": "小女孩",
+  "canvasWidth": 256,
+  "canvasHeight": 256,
+  "anchor": {
+    "x": 0.5,
+    "y": 0.88
+  },
+  "actions": {
+    "idle": {
+      "fps": 3,
+      "loop": true,
+      "frames": ["01.png", "02.png", "03.png", "04.png", "05.png", "06.png", "07.png", "08.png"]
+    },
+    "walk": {
+      "fps": 4,
+      "loop": true,
+      "frames": ["01.png", "02.png", "03.png", "04.png", "05.png", "06.png", "07.png", "08.png"]
+    },
+    "happy": {
+      "fps": 5,
+      "loop": false,
+      "frames": ["01.png", "02.png", "03.png", "04.png", "05.png", "06.png", "07.png", "08.png"]
+    },
+    "sleep": {
+      "fps": 1,
+      "loop": true,
+      "frames": ["01.png", "02.png", "03.png", "04.png", "05.png", "06.png"]
+    },
+    "sad": {
+      "fps": 3,
+      "loop": false,
+      "frames": ["01.png", "02.png", "03.png", "04.png", "05.png", "06.png"]
+    },
+    "stretch": {
+      "fps": 4,
+      "loop": false,
+      "frames": ["01.png", "02.png", "03.png", "04.png", "05.png", "06.png", "07.png", "08.png"]
+    },
+    "looking_around": {
+      "fps": 3,
+      "loop": false,
+      "frames": ["01.png", "02.png", "03.png", "04.png", "05.png", "06.png", "07.png", "08.png"]
+    }
+  },
+  "createdAt": 0
+}

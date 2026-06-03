@@ -23,6 +23,8 @@
     "opener:default",
     "fs:default",
     "process:allow-exit",
+    "process:allow-restart",
+    "updater:default",
     {
       "identifier": "fs:allow-exists",
       "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**" }]

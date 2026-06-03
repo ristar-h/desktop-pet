@@ -42,9 +42,19 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://desktop-pet.ristar.tech/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEEyNjNDRjdGREVCMkFFNzIKUldSeXJyTGVmODlqb2lvbXV1RGlOeWxJaDRJN2wxRmhQS2t5ckdpWE9LM29iak03Q09Xckd2UlcK"
+    }
+  },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": ["dmg", "app"],
+    "resources": ["resources/default-avatar/**/*"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

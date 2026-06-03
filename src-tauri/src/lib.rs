@@ -1,6 +1,7 @@
 use tauri::{Emitter, Manager, RunEvent, WindowEvent};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::path::Path;
 
 /// Get seconds since last user input (mouse/keyboard)
 #[tauri::command]
@@ -39,27 +40,74 @@ fn get_idle_seconds() -> f64 {
     }
 }
 
-/// 读取 config.json 中的 onboardingCompleted 标志（启动时决定显示哪个窗口）
-fn read_onboarding_completed<R: tauri::Runtime>(app: &tauri::App<R>) -> bool {
-    let app_data_dir = match app.path().app_data_dir() {
-        Ok(d) => d,
-        Err(_) => return false,
-    };
-    let config_path = app_data_dir.join("config.json");
-    if !config_path.exists() {
-        return false;
+/// 递归 copy 目录（std::fs 没原生提供）
+fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        let dst_path = dst.join(entry.file_name());
+        if ty.is_dir() {
+            copy_dir_recursive(&entry.path(), &dst_path)?;
+        } else {
+            std::fs::copy(entry.path(), &dst_path)?;
+        }
     }
-    let text = match std::fs::read_to_string(&config_path) {
-        Ok(t) => t,
-        Err(_) => return false,
+    Ok(())
+}
+
+/// 首次启动 / 升级时确保默认形象已就位 + config 已初始化。
+/// 幂等：默认形象目录已存在则不覆盖；config 已有 currentAvatarId 则不动。
+fn ensure_default_avatar_and_config<R: tauri::Runtime>(app: &tauri::App<R>) -> std::io::Result<()> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    std::fs::create_dir_all(&app_data_dir)?;
+
+    // ---- 1. 安装默认形象（avatars/default/）----
+    let default_avatar_dst = app_data_dir.join("avatars").join("default");
+    if !default_avatar_dst.exists() {
+        let resource_path = app
+            .path()
+            .resolve("resources/default-avatar", tauri::path::BaseDirectory::Resource)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        if resource_path.exists() {
+            copy_dir_recursive(&resource_path, &default_avatar_dst)?;
+            println!("[Setup] default avatar installed → {:?}", default_avatar_dst);
+        } else {
+            eprintln!("[Setup] default avatar resource not found at {:?}", resource_path);
+        }
+    }
+
+    // ---- 2. 初始化 / 修补 config.json ----
+    let config_path = app_data_dir.join("config.json");
+    let mut config: serde_json::Value = if config_path.exists() {
+        match std::fs::read_to_string(&config_path) {
+            Ok(t) => serde_json::from_str(&t).unwrap_or_else(|_| serde_json::json!({})),
+            Err(_) => serde_json::json!({}),
+        }
+    } else {
+        serde_json::json!({})
     };
-    let json: serde_json::Value = match serde_json::from_str(&text) {
-        Ok(v) => v,
-        Err(_) => return false,
-    };
-    json.get("onboardingCompleted")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false)
+
+    let mut changed = false;
+    // 没 currentAvatarId → 用默认形象
+    if config.get("currentAvatarId").and_then(|v| v.as_str()).is_none() {
+        config["currentAvatarId"] = serde_json::Value::String("default".to_string());
+        changed = true;
+    }
+    // 既然默认形象已安装，老用户也直接放行
+    if !config.get("onboardingCompleted").and_then(|v| v.as_bool()).unwrap_or(false) {
+        config["onboardingCompleted"] = serde_json::Value::Bool(true);
+        changed = true;
+    }
+    if changed {
+        std::fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
+        println!("[Setup] config.json initialized / patched");
+    }
+
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -72,6 +120,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![get_idle_seconds])
         .on_window_event(|window, event| {
             // 拦截 main 窗口的关闭事件：改为隐藏，桌宠仍然存活
@@ -87,29 +136,22 @@ pub fn run() {
             let running_clone = running.clone();
 
             // ============================================================
-            // 读取 config.json，决定首次启动显示 main 还是 pet 窗口
+            // 首次启动 / 升级：装默认形象 + 修补 config.json
+            // 失败也不要 panic，桌宠就用 Onboarding 兜底
             // ============================================================
-            // 不依赖 JS：Rust 直接读盘，避免 webview 懒加载导致桌宠不显示
-            let onboarded = read_onboarding_completed(app);
-            println!("[Setup] onboardingCompleted = {}", onboarded);
-            if onboarded {
-                if let Some(pet) = app.get_webview_window("pet") {
-                    match pet.show() {
-                        Ok(_) => println!("[Setup] pet window shown"),
-                        Err(e) => eprintln!("[Setup] failed to show pet: {:?}", e),
-                    }
-                } else {
-                    eprintln!("[Setup] pet window not found");
-                }
-            } else {
-                if let Some(main) = app.get_webview_window("main") {
-                    match main.show() {
-                        Ok(_) => println!("[Setup] main window shown (onboarding)"),
-                        Err(e) => eprintln!("[Setup] failed to show main: {:?}", e),
-                    }
-                } else {
-                    eprintln!("[Setup] main window not found");
-                }
+            if let Err(e) = ensure_default_avatar_and_config(app) {
+                eprintln!("[Setup] ensure_default_avatar_and_config failed: {:?}", e);
+            }
+
+            // ============================================================
+            // 现在所有用户都视为「已 onboard」（默认形象保证存在）
+            // 同时 show 主面板（首启动用户能看到 AvatarManager）和桌宠（用户立即能看到伙伴）
+            // ============================================================
+            if let Some(pet) = app.get_webview_window("pet") {
+                let _ = pet.show();
+            }
+            if let Some(main) = app.get_webview_window("main") {
+                let _ = main.show();
             }
 
             // Configure pet window for always-on-top (macOS specific)
@@ -161,7 +203,8 @@ pub fn run() {
             if matches!(event, RunEvent::Exit) {
                 running_for_run.store(false, Ordering::Relaxed);
             }
-            // macOS: 点击 Dock 图标 → 显示 main 窗口
+            // macOS: 点击 Dock 图标 → 同时显示主面板 + 桌宠
+            // 用户预期：从 Dock 重新唤起 = 把伙伴和操作面板都拿回来
             #[cfg(target_os = "macos")]
             {
                 if let RunEvent::Reopen { has_visible_windows, .. } = &event {
@@ -169,6 +212,9 @@ pub fn run() {
                         if let Some(main_window) = app_handle.get_webview_window("main") {
                             let _ = main_window.show();
                             let _ = main_window.set_focus();
+                        }
+                        if let Some(pet_window) = app_handle.get_webview_window("pet") {
+                            let _ = pet_window.show();
                         }
                     }
                 }

@@ -19,3 +19,7 @@ Thumbs.db
 
 # Tauri
 src-tauri/gen/
+
+# Update signing keys（绝对不能进 git；私钥泄露 = 任何人都能伪造你的更新）
+*.key
+*.key.pub
