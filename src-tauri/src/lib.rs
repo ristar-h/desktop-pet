@@ -161,6 +161,22 @@ pub fn run() {
                     NSWindow, NSWindowCollectionBehavior,
                 };
                 use cocoa::base::id;
+                use cocoa::foundation::NSUInteger;
+                use objc::runtime::{Class, Object};
+                use objc::{msg_send, sel, sel_impl};
+
+                // NSWindowStyleMaskNonactivatingPanel = 1 << 7
+                // cocoa 0.26 的 NSWindowStyleMask 枚举没暴露这个值，只能用字面量。
+                // Apple 头文件里的常量值是稳定的，跨 macOS 版本不会变。
+                const NS_NONACTIVATING_PANEL_MASK: NSUInteger = 1 << 7;
+
+                // libobjc.dylib 的 runtime 函数：在 objc 0.2 crate 里没 re-export，
+                // 但符号在系统库里随时可链。改 isa（"morph"）的唯一公开 API。
+                // [obj setClass:] 不是 NSObject 的公开实例方法，msg_send 发过去会
+                // unrecognized selector → abort，必须走这个 runtime 入口。
+                extern "C" {
+                    fn object_setClass(obj: *mut Object, cls: *const Class) -> *const Class;
+                }
 
                 if let Some(pet_window) = app.get_webview_window("pet") {
                     // ns_window() 返回 Result：罕见情况下窗口已 drop 会报错；
@@ -168,6 +184,37 @@ pub fn run() {
                     if let Ok(ns_handle) = pet_window.ns_window() {
                         let ns_window = ns_handle as id;
                         unsafe {
+                            // ============================================================
+                            // 关键：把 NSWindow morph 成 NSPanel + nonactivatingPanel
+                            //
+                            // 单纯靠 setLevel(1500) + FullScreenAuxiliary 在 NSWindow 上不可靠——
+                            // Chrome / 视频播放器进入"原生全屏"会被分到独立的 fullscreen Space，
+                            // 普通 NSWindow 即使带 FullScreenAuxiliary 也常常被排除在外。
+                            //
+                            // NSPanel 是 macOS 给"工具调色板/浮动面板"专门设计的子类，配合
+                            // nonactivatingPanel style mask 可以稳定地浮在所有 fullscreen 应用之上，
+                            // 同时点击不会抢焦点（前台 app 不会被切换走）。
+                            //
+                            // setClass: 用 objc 运行时把 isa 指针指向 NSPanel —— NSPanel 没有新增
+                            // 实例变量，只是 override 一些方法，内存布局兼容，安全。这是 Tauri /
+                            // electron-overlay 等项目通用的 hack。
+                            // ============================================================
+                            if let Some(panel_class) = Class::get("NSPanel") {
+                                // 用 runtime 函数改 isa，不是 msg_send（见上面 extern 注释）
+                                object_setClass(ns_window as *mut Object, panel_class);
+                                let current_mask: NSUInteger = msg_send![ns_window, styleMask];
+                                let new_mask = current_mask | NS_NONACTIVATING_PANEL_MASK;
+                                let _: () = msg_send![ns_window, setStyleMask: new_mask];
+
+                                // 让 nonactivating panel 即便不成为 key window 也能收到 mouseMoved
+                                // 事件 → WebKit 才能稳定派发 cursor:grab 给系统，鼠标 hover 上来
+                                // 才能从箭头变成小手。否则 macOS 会立刻把 WebKit 设的 cursor
+                                // 重置回默认箭头。
+                                let _: () = msg_send![ns_window, setAcceptsMouseMovedEvents: true];
+                            } else {
+                                eprintln!("[Setup] NSPanel class not found, fullscreen overlay may fail");
+                            }
+
                             // Level 1500: above fullscreen apps
                             ns_window.setLevel_(1500);
 
